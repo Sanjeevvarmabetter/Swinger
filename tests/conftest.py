@@ -14,8 +14,10 @@ def isolated_data_dir(tmp_path, monkeypatch):
     """Every test gets fresh, empty databases and cache — never touches real data."""
     monkeypatch.setenv("TRADINGOS_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("GEMINI_API_KEY", "")
+    monkeypatch.setenv("GROQ_API_KEY", "")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     # Never let tests reach real (possibly paid) provider APIs with the developer's keys from .env.
-    for k in ("FINNHUB_API_KEY", "FMP_API_KEY", "FRED_API_KEY", "SEC_USER_AGENT"):
+    for k in ("FINNHUB_API_KEY", "FMP_API_KEY", "FRED_API_KEY", "SEC_USER_AGENT", "GROQ_API_KEY", "ANTHROPIC_API_KEY"):
         monkeypatch.setenv(k, "")
     from tradingos.ai import gemini
     gemini._CLIENT = None

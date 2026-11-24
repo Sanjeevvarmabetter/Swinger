@@ -17,13 +17,13 @@ cfg_app = load_config()
 
 st.markdown("## AI Research Workstation")
 st.caption(
-    "Institutional research assistant powered by Google Gemini · "
+    "Institutional research assistant powered by Groq & Google Gemini · "
     "Python deterministically calculates all prices, ratios, and risk metrics; "
-    "Gemini interprets the structured evidence."
+    "AI models interpret the structured evidence."
 )
 
-if not cfg_app.gemini_configured:
-    st.warning("Gemini API key is not configured. Add GEMINI_API_KEY to your .env file to enable AI synthesis.")
+if not cfg_app.ai_configured:
+    st.warning("AI is not configured. Add GROQ_API_KEY (recommended, free) or GEMINI_API_KEY to your .env file or Streamlit secrets.")
 
 cfg = ui.settings()
 
@@ -142,7 +142,7 @@ with tab_chat:
             st.markdown(msg["text"])
 
     prompt = st.chat_input("Ask a research question, e.g. 'Compare recent revenue momentum vs price trend'",
-                           disabled=not cfg_app.gemini_configured)
+                           disabled=not cfg_app.ai_configured)
     if prompt:
         hist.append({"role": "user", "text": prompt})
         with st.chat_message("user"):

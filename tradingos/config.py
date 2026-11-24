@@ -41,6 +41,11 @@ class AppConfig:
     fred_api_key: str
     finnhub_api_key: str = ""
     fmp_api_key: str = ""
+    groq_api_key: str = ""
+    groq_model: str = "openai/gpt-oss-120b"
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-3-5-sonnet-20241022"
+    ai_provider: str = "auto"
 
     @property
     def trading_db_path(self) -> Path:
@@ -68,6 +73,18 @@ class AppConfig:
         return bool(self.gemini_api_key)
 
     @property
+    def groq_configured(self) -> bool:
+        return bool(self.groq_api_key)
+
+    @property
+    def anthropic_configured(self) -> bool:
+        return bool(self.anthropic_api_key)
+
+    @property
+    def ai_configured(self) -> bool:
+        return self.groq_configured or self.gemini_configured or self.anthropic_configured
+
+    @property
     def finnhub_configured(self) -> bool:
         return bool(self.finnhub_api_key)
 
@@ -92,6 +109,11 @@ def load_config() -> AppConfig:
         fred_api_key=_env("FRED_API_KEY"),
         finnhub_api_key=_env("FINNHUB_API_KEY"),
         fmp_api_key=_env("FMP_API_KEY"),
+        groq_api_key=_env("GROQ_API_KEY"),
+        groq_model=_env("GROQ_MODEL", "openai/gpt-oss-120b"),
+        anthropic_api_key=_env("ANTHROPIC_API_KEY"),
+        anthropic_model=_env("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022"),
+        ai_provider=_env("AI_PROVIDER", "auto"),
     )
     for d in (cfg.data_dir, cfg.cache_dir, cfg.backup_dir, cfg.reports_dir):
         d.mkdir(parents=True, exist_ok=True)

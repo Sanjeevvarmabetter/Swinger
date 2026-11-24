@@ -193,6 +193,15 @@ class GeminiError(RuntimeError):
     pass
 
 
+AIError = GeminiError
+
+GROQ_MODELS = [
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "qwen/qwen3.8-27b",
+]
+
+
 def to_jsonable(obj: Any) -> Any:
     if isinstance(obj, dict):
         return {str(k): to_jsonable(v) for k, v in obj.items()}
@@ -222,14 +231,14 @@ class GeminiClient:
     def __init__(self):
         self.cfg = load_config()
         self._client = None
-        self.active_model = self.cfg.gemini_model
+        self.active_model = self.cfg.groq_model if self.cfg.groq_configured else self.cfg.gemini_model
 
     @property
     def configured(self) -> bool:
-        return self.cfg.gemini_configured
+        return self.cfg.ai_configured
 
     def client(self):
-        if not self.configured:
+        if not self.cfg.gemini_configured:
             raise GeminiError("Gemini is not configured. Add GEMINI_API_KEY to your .env file "
                               "(get a key at https://aistudio.google.com/apikey) and restart the app.")
         if self._client is None:
@@ -246,8 +255,77 @@ class GeminiClient:
                 time.sleep(wait)
             GeminiClient._last_call = time.time()
 
-    def generate(self, prompt: str, system: str = BASE_SYSTEM, temperature: float = 0.3,
-                 max_output_tokens: int = 8192) -> str:
+    def _generate_groq(self, prompt: str, system: str, temperature: float, max_output_tokens: int) -> str:
+        """Query Groq OpenAI-compatible chat API with automatic model fallback."""
+        import requests
+        headers = {
+            "Authorization": f"Bearer {self.cfg.groq_api_key}",
+            "Content-Type": "application/json",
+        }
+        models = list(dict.fromkeys([self.cfg.groq_model, *GROQ_MODELS]))
+        last_err = None
+        for m in models:
+            payload = {
+                "model": m,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": temperature,
+                "max_tokens": min(max_output_tokens, 8192),
+            }
+            try:
+                resp = requests.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers=headers,
+                    json=payload,
+                    timeout=60,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    self.active_model = f"groq/{m}"
+                    return data["choices"][0]["message"]["content"]
+                last_err = f"Groq HTTP {resp.status_code} ({m}): {resp.text[:150]}"
+            except Exception as e:
+                last_err = f"Groq request error ({m}): {e}"
+        raise GeminiError(last_err or "Groq generation failed.")
+
+    def _chat_groq(self, history: list[dict], user_msg: str, context: dict | None = None) -> str:
+        """Native multi-turn chat on Groq."""
+        import requests
+        headers = {
+            "Authorization": f"Bearer {self.cfg.groq_api_key}",
+            "Content-Type": "application/json",
+        }
+        sys = BASE_SYSTEM + "\nYou are in CHAT mode. The JSON CONTEXT below is the only market data you may use.\n"
+        if context:
+            sys += "CONTEXT:\n" + json.dumps(to_jsonable(context), default=str)[:60_000]
+        messages = [{"role": "system", "content": sys}]
+        for h in history[-12:]:
+            role = "user" if h.get("role") == "user" else "assistant"
+            messages.append({"role": role, "content": h.get("text", "")})
+        messages.append({"role": "user", "content": user_msg})
+
+        model = self.cfg.groq_model or "openai/gpt-oss-120b"
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": 0.4,
+            "max_tokens": 4096,
+        }
+        resp = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=60,
+        )
+        if resp.status_code == 200:
+            self.active_model = f"groq/{model}"
+            return resp.json()["choices"][0]["message"]["content"]
+        raise GeminiError(f"Groq chat failed (HTTP {resp.status_code}): {resp.text[:150]}")
+
+    def _generate_gemini(self, prompt: str, system: str = BASE_SYSTEM, temperature: float = 0.3,
+                         max_output_tokens: int = 8192) -> str:
         """Try the configured model, then FALLBACK_MODELS.
 
         Quota-aware: a 429 whose retry delay is long (daily free-tier cap) marks that model exhausted until reset
@@ -326,14 +404,66 @@ class GeminiClient:
                 if daily_out else " Retry in a few minutes.")
         raise GeminiError(f"No Gemini model could answer — {detail}.{hint}")
 
-    def chat(self, history: list[dict], user_msg: str, context: dict | None = None) -> str:
-        """Multi-turn chat. history = [{'role': 'user'|'model', 'text': ...}]."""
+    def _chat_gemini(self, history: list[dict], user_msg: str, context: dict | None = None) -> str:
+        """Multi-turn chat using Gemini."""
         sys = BASE_SYSTEM + "\nYou are in CHAT mode. The JSON CONTEXT below is the only market data you may use.\n"
         if context:
             sys += "CONTEXT:\n" + json.dumps(to_jsonable(context), default=str)[:60_000]
-        convo = "\n".join(f"{'USER' if h['role'] == 'user' else 'ASSISTANT'}: {h['text']}" for h in history[-12:])
+        convo = "\n".join(f"{'USER' if h.get('role') == 'user' else 'ASSISTANT'}: {h.get('text', '')}" for h in history[-12:])
         prompt = (f"Conversation so far:\n{convo}\n\n" if convo else "") + f"USER: {user_msg}\nASSISTANT:"
-        return self.generate(prompt, system=sys, temperature=0.4)
+        return self._generate_gemini(prompt, system=sys, temperature=0.4)
+
+    def generate(self, prompt: str, system: str = BASE_SYSTEM, temperature: float = 0.3,
+                 max_output_tokens: int = 8192) -> str:
+        """Route generation to configured AI provider (Groq or Gemini)."""
+        # If test or caller injected a Gemini mock object on self._client, use Gemini flow
+        if self._client is not None and hasattr(self._client, "models"):
+            return self._generate_gemini(prompt, system, temperature, max_output_tokens)
+
+        # Route to Groq if configured (preferred / active)
+        if self.cfg.groq_configured and (self.cfg.ai_provider in ("groq", "auto") or not self.cfg.gemini_configured):
+            try:
+                return self._generate_groq(prompt, system, temperature, max_output_tokens)
+            except Exception as e:
+                if self.cfg.gemini_configured and self.cfg.ai_provider == "auto":
+                    log.warning("Groq generation failed (%s), falling back to Gemini", e)
+                    return self._generate_gemini(prompt, system, temperature, max_output_tokens)
+                raise
+
+        # Route to Gemini if configured
+        if self.cfg.gemini_configured:
+            return self._generate_gemini(prompt, system, temperature, max_output_tokens)
+
+        # Route to Groq fallback if gemini was requested but not configured
+        if self.cfg.groq_configured:
+            return self._generate_groq(prompt, system, temperature, max_output_tokens)
+
+        raise GeminiError(
+            "No AI provider configured. Add GROQ_API_KEY (recommended, free) or GEMINI_API_KEY "
+            "to your .env file or Streamlit secrets."
+        )
+
+    def chat(self, history: list[dict], user_msg: str, context: dict | None = None) -> str:
+        """Multi-turn chat routed to the active AI provider."""
+        if self._client is not None and hasattr(self._client, "models"):
+            return self._chat_gemini(history, user_msg, context)
+
+        if self.cfg.groq_configured and (self.cfg.ai_provider in ("groq", "auto") or not self.cfg.gemini_configured):
+            try:
+                return self._chat_groq(history, user_msg, context)
+            except Exception as e:
+                if self.cfg.gemini_configured and self.cfg.ai_provider == "auto":
+                    log.warning("Groq chat failed (%s), falling back to Gemini", e)
+                    return self._chat_gemini(history, user_msg, context)
+                raise
+
+        if self.cfg.gemini_configured:
+            return self._chat_gemini(history, user_msg, context)
+
+        raise GeminiError("No AI provider configured.")
+
+
+AIClient = GeminiClient
 
 
 _CLIENT: GeminiClient | None = None
@@ -400,14 +530,53 @@ def news_impact(payload: dict) -> str:
     return _run("news_impact", payload, "news")
 
 
-def test_connection() -> tuple[bool, str]:
+def test_groq_connection() -> tuple[bool, str]:
+    cfg = load_config()
+    if not cfg.groq_configured:
+        return False, "GROQ_API_KEY is not configured in .env or secrets."
+    try:
+        import requests
+        headers = {"Authorization": f"Bearer {cfg.groq_api_key}", "Content-Type": "application/json"}
+        payload = {
+            "model": cfg.groq_model or "openai/gpt-oss-120b",
+            "messages": [
+                {"role": "system", "content": "You are a connectivity check."},
+                {"role": "user", "content": "Reply with exactly: OK"}
+            ],
+            "temperature": 0,
+            "max_tokens": 15
+        }
+        r = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=15)
+        if r.status_code == 200:
+            txt = r.json()["choices"][0]["message"]["content"].strip()
+            return True, f"Connected to Groq ({payload['model']}): {txt[:50]}"
+        return False, f"Groq HTTP {r.status_code}: {r.text[:150]}"
+    except Exception as e:
+        return False, f"Groq error: {e}"
+
+
+def test_gemini_connection() -> tuple[bool, str]:
+    cfg = load_config()
+    if not cfg.gemini_configured:
+        return False, "GEMINI_API_KEY is not configured in .env or secrets."
     try:
         c = get_client()
-        txt = c.generate("Reply with exactly: OK", system="You are a connectivity check.",
-                         temperature=0, max_output_tokens=20)
-        return True, f"Connected to {c.active_model}: {txt.strip()[:40]}"
-    except (GeminiError, Exception) as e:
-        return False, str(e)
+        txt = c._generate_gemini("Reply with exactly: OK", system="You are a connectivity check.",
+                                 temperature=0, max_output_tokens=20)
+        return True, f"Connected to Gemini ({c.active_model}): {txt.strip()[:40]}"
+    except Exception as e:
+        return False, f"Gemini error: {e}"
+
+
+def test_connection() -> tuple[bool, str]:
+    cfg = load_config()
+    if cfg.groq_configured and (cfg.ai_provider in ("groq", "auto") or not cfg.gemini_configured):
+        return test_groq_connection()
+    if cfg.gemini_configured:
+        return test_gemini_connection()
+    if cfg.groq_configured:
+        return test_groq_connection()
+    return False, "Neither GROQ_API_KEY nor GEMINI_API_KEY is configured."
 
 
 def recent_reports(kind: str | None = None, subject: str | None = None, limit: int = 20) -> list[AIReport]:

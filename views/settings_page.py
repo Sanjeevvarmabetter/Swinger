@@ -2,7 +2,7 @@ from dataclasses import asdict, fields
 
 import streamlit as st
 
-from tradingos.ai.gemini import test_connection
+from tradingos.ai.gemini import test_connection, test_gemini_connection, test_groq_connection
 from tradingos.config import load_config
 from tradingos.data import cache
 from tradingos.settings import TradingSettings, load_settings, save_settings
@@ -17,7 +17,21 @@ cfg = load_settings()
 app = load_config()
 
 st.markdown("### External API Integrations & Health")
-c1, c2, c3, c4 = st.columns(4)
+c0, c1, c2, c3, c4 = st.columns(5)
+with c0:
+    st.markdown(
+        f'<div class="term-card">'
+        f'  <div class="term-card-header">'
+        f'    <span class="term-label">Groq AI (LPU)</span>'
+        f'    {ui.badge("ACTIVE" if app.groq_configured else "DISABLED", "green" if app.groq_configured else "neutral")}'
+        f'  </div>'
+        f'  <div style="font-size:0.75rem;color:#94A3B8;margin-bottom:8px;">Model: <code>{app.groq_model}</code><br/>Ultra-fast reasoning</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+    if st.button("Test Groq", disabled=not app.groq_configured, width="stretch"):
+        ok, msg = test_groq_connection()
+        (st.success if ok else st.error)(msg)
 with c1:
     st.markdown(
         f'<div class="term-card">'
@@ -25,21 +39,21 @@ with c1:
         f'    <span class="term-label">Google Gemini</span>'
         f'    {ui.badge("ACTIVE" if app.gemini_configured else "DISABLED", "green" if app.gemini_configured else "neutral")}'
         f'  </div>'
-        f'  <div style="font-size:0.75rem;color:#94A3B8;margin-bottom:8px;">Model: <code>{app.gemini_model}</code><br/>Auto-fallback enabled</div>'
+        f'  <div style="font-size:0.75rem;color:#94A3B8;margin-bottom:8px;">Model: <code>{app.gemini_model}</code><br/>Auto-fallback chain</div>'
         f'</div>',
         unsafe_allow_html=True,
     )
-    if st.button("Test Gemini Connection", disabled=not app.gemini_configured, width="stretch"):
-        ok, msg = test_connection()
+    if st.button("Test Gemini", disabled=not app.gemini_configured, width="stretch"):
+        ok, msg = test_gemini_connection()
         (st.success if ok else st.error)(msg)
 with c2:
     st.markdown(
         f'<div class="term-card">'
         f'  <div class="term-card-header">'
-        f'    <span class="term-label">Finnhub Market Data</span>'
+        f'    <span class="term-label">Finnhub Market</span>'
         f'    {ui.badge("ACTIVE" if app.finnhub_configured else "DISABLED", "green" if app.finnhub_configured else "neutral")}'
         f'  </div>'
-        f'  <div style="font-size:0.75rem;color:#94A3B8;margin-bottom:8px;">Real-time quotes, company news & earnings</div>'
+        f'  <div style="font-size:0.75rem;color:#94A3B8;margin-bottom:8px;">Real-time quotes, news & earnings</div>'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -51,10 +65,10 @@ with c3:
     st.markdown(
         f'<div class="term-card">'
         f'  <div class="term-card-header">'
-        f'    <span class="term-label">FMP (Financial Modeling)</span>'
+        f'    <span class="term-label">FMP Financials</span>'
         f'    {ui.badge("ACTIVE" if app.fmp_configured else "DISABLED", "green" if app.fmp_configured else "neutral")}'
         f'  </div>'
-        f'  <div style="font-size:0.75rem;color:#94A3B8;margin-bottom:8px;">Financial statements, balance sheets & ratios</div>'
+        f'  <div style="font-size:0.75rem;color:#94A3B8;margin-bottom:8px;">Statements, balance sheets & ratios</div>'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -69,7 +83,7 @@ with c4:
         f'    <span class="term-label">St. Louis Fed (FRED)</span>'
         f'    {ui.badge("ACTIVE" if app.fred_api_key else "CSV FALLBACK", "green" if app.fred_api_key else "amber")}'
         f'  </div>'
-        f'  <div style="font-size:0.75rem;color:#94A3B8;margin-bottom:8px;">17 macroeconomic series & yield observations</div>'
+        f'  <div style="font-size:0.75rem;color:#94A3B8;margin-bottom:8px;">17 macro series & yield observations</div>'
         f'</div>',
         unsafe_allow_html=True,
     )

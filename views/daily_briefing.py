@@ -47,14 +47,14 @@ labels = {b.id: f"{b.edition_date:%a %d %b} · created {b.created_at:%H:%M} UTC"
 pick = c2.selectbox("Issue", list(labels) or [None], format_func=lambda i: labels.get(i, "none yet"))
 with c3:
     st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
-    gen_ai = st.button("✨ Generate now", type="primary", width="stretch", disabled=not cfg.gemini_configured,
-                       help="Refresh news + market data, build the deterministic edition and ask Gemini to edit it.")
+    gen_ai = st.button("✨ Generate now", type="primary", width="stretch", disabled=not cfg.ai_configured,
+                       help="Refresh news + market data, build the deterministic edition and ask AI to edit it.")
 with c4:
     st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
     gen_det = st.button("Facts-only edition", width="stretch",
-                        help="Same pipeline without Gemini — every line is sourced data or a fixed rule.")
+                        help="Same pipeline without AI — every line is sourced data or a fixed rule.")
 
-if cfg.gemini_configured:
+if cfg.gemini_configured and not cfg.groq_configured:
     from tradingos.ai.gemini import FALLBACK_MODELS, quota_status
     qs = quota_status()
     if qs:
@@ -62,6 +62,8 @@ if cfg.gemini_configured:
         st.caption("Gemini quota: " + ", ".join(f"{q['model']} used up (resets in {q['resets_in_hours']}h)" for q in qs)
                    + (f" · still available: {', '.join(left)}" if left else " · no models left today — facts-only "
                       "edition only. Free tier ≈ 20 requests/day per model; enabling billing raises it."))
+elif cfg.groq_configured:
+    st.caption(f"Active AI Engine: <code>Groq ({cfg.groq_model})</code> · High-throughput LPU inference active", unsafe_allow_html=True)
 
 if gen_ai or gen_det:
     with st.spinner(f"Building {br.EDITIONS[ed_key].title}: refreshing news, markets, gold drivers, calendars"

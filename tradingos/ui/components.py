@@ -597,27 +597,29 @@ def color_pct_cols(df: pd.DataFrame, cols: list[str]):
 
 
 def gemini_panel(key: str, label: str, fn: Callable[[], str], help_text: str = "") -> None:
-    """Button → run Gemini → keep result in session. Shows clear status when not configured."""
+    """Button → run AI synthesis → keep result in session. Shows clear status when not configured."""
     cfg = load_config()
     state_key = f"ai_{key}"
     cols = st.columns([1.2, 3])
+    active_model = f"Groq ({cfg.groq_model})" if cfg.groq_configured else f"Gemini ({cfg.gemini_model})"
     with cols[0]:
         clicked = st.button(
             f"✨ {label}",
             key=f"btn_{key}",
-            disabled=not cfg.gemini_configured,
-            help=help_text or "Sends Python-computed data to Gemini for interpretation.",
-            type="primary" if cfg.gemini_configured else "secondary",
+            disabled=not cfg.ai_configured,
+            help=help_text or f"Sends Python-computed data to {active_model} for interpretation.",
+            type="primary" if cfg.ai_configured else "secondary",
         )
     with cols[1]:
-        if not cfg.gemini_configured:
-            st.caption("Gemini not configured — add GEMINI_API_KEY to .env and restart. "
+        if not cfg.ai_configured:
+            st.caption("AI not configured — add GROQ_API_KEY (free) or GEMINI_API_KEY to .env or Streamlit secrets. "
                        "All deterministic analysis still works.")
         else:
-            st.caption(f"Model: {cfg.gemini_model} · Gemini interprets Python-computed data; it has no live web access.")
+            st.caption(f"Engine: <code>{active_model}</code> · Interprets Python-computed data; no live web access.",
+                       unsafe_allow_html=True)
     if clicked:
         from tradingos.ai.gemini import GeminiError
-        with st.spinner("Gemini is analysing the supplied data…"):
+        with st.spinner("AI is analysing the supplied data…"):
             try:
                 st.session_state[state_key] = fn()
             except GeminiError as e:
