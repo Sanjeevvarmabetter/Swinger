@@ -185,7 +185,7 @@ def now_ist() -> datetime:
     return datetime.now(timezone.utc).astimezone(IST)
 
 
-# ============================================================================ Stage 2: richer calendar
+# ============================================================================ richer calendar
 import re as _re
 
 FED_CAL_URL = "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"

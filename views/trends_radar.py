@@ -20,8 +20,8 @@ with st.spinner("Computing theme baskets…"):
     tab, detail, meta = iu.radar()
 iu.meta_line({**meta, "missing": [m for m in meta.get("missing", []) if "last bar" not in m]})
 
-STAGE_COLOR = {"Emerging": "#22D3EE", "Gaining momentum": "#10B981", "Established": "#38BDF8", "Crowded": "#F59E0B",
-               "Weakening": "#FB923C", "Out of favour": "#F43F5E", "No clear trend": "#64748B"}
+STAGE_COLOR = {"Emerging": "#22D3EE", "Gaining momentum": "#2FBF71", "Established": "#4EA8F2", "Crowded": "#E9A23B",
+               "Weakening": "#FB923C", "Out of favour": "#EF5B67", "No clear trend": "#64748B"}
 
 t_over, t_theme, t_method = st.tabs(["Radar", "Theme deep-dive", "Methodology"])
 
@@ -85,7 +85,7 @@ with t_theme:
         i1, b1 = idx[idx.index >= win], bench[bench.index >= win]
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=i1.index, y=(i1 / i1.iloc[0] - 1) * 100, name=f"{name} basket",
-                                 line=dict(color="#10B981", width=1.8)))
+                                 line=dict(color="#2FBF71", width=1.8)))
         fig.add_trace(go.Scatter(x=b1.index, y=(b1 / b1.iloc[0] - 1) * 100, name=t["benchmark"],
                                  line=dict(color="#94A3B8", width=1.2)))
         fig.update_layout(title=dict(text="1-year performance vs benchmark (%)", x=0.01, font=dict(size=12)))
@@ -114,14 +114,14 @@ with t_theme:
         if matches is not None and len(matches) else pd.DataFrame()
     iu.story_list(ranked, n=10, tiers=("MUST KNOW", "IMPORTANT", "INTERESTING", "IGNORE FOR NOW"),
                   empty="No matching stories in the last 14 days.")
-    st.caption("Relevant X discussions: X integration arrives in Stage 3.")
     payload = {"theme": t, "stage": det["stage"], "stage_evidence": det["why"],
                "metrics": {k: v for k, v in m.items() if k not in ("series", "bench_series")},
                "attention": {k: v for k, v in a.items() if k != "matches"},
                "related_indicators": ind_rows,
                "news": ranked.head(15)[["tier", "headline", "source", "published_utc", "url", "info_type"]] if len(ranked) else [],
                "methodology": trends.METHODOLOGY}
-    ui.gemini_panel(f"trend_{name}", f"Analyse {name}", lambda: gemini.intel_analysis("trends_analyst", payload, name))
+    ui.gemini_panel(f"trend_{name}", f"Analyse {name}", lambda: gemini.intel_analysis("trends_analyst", payload, name),
+                    payload_for_links=payload)
 
 with t_method:
     st.markdown("Stages are checked **in this order**; the first rule that matches wins.")

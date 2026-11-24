@@ -1,6 +1,6 @@
 """Application configuration.
 
-Secrets come ONLY from environment variables (.env). User-tunable trading settings
+Secrets come ONLY from environment variables (.env). User-tunable app settings
 live in the database (see tradingos.settings) so they can be edited in the UI.
 """
 from __future__ import annotations
@@ -50,11 +50,6 @@ class AppConfig:
     @property
     def trading_db_path(self) -> Path:
         return self.data_dir / "trading.db"
-
-    @property
-    def longterm_db_path(self) -> Path:
-        # Physically separate database: long-term holdings can never leak into trading equity.
-        return self.data_dir / "longterm.db"
 
     @property
     def cache_dir(self) -> Path:

@@ -1,4 +1,4 @@
-"""Engine/session factories and backups for the two SQLite databases."""
+"""Engine/session factory and backups for the intelligence SQLite database."""
 from __future__ import annotations
 
 import sqlite3
@@ -12,7 +12,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from tradingos.config import load_config
-from tradingos.db.models import LongTermBase, TradingBase
+from tradingos.db.models import TradingBase
 
 
 def make_engine(path: Path | str) -> Engine:
@@ -54,19 +54,8 @@ def _trading_engine(path: str) -> Engine:
     return eng
 
 
-@lru_cache(maxsize=None)
-def _longterm_engine(path: str) -> Engine:
-    eng = make_engine(path)
-    LongTermBase.metadata.create_all(eng)
-    return eng
-
-
 def trading_engine() -> Engine:
     return _trading_engine(str(load_config().trading_db_path))
-
-
-def longterm_engine() -> Engine:
-    return _longterm_engine(str(load_config().longterm_db_path))
 
 
 @contextmanager
@@ -85,11 +74,11 @@ def session_scope(engine: Engine | None = None):
 
 
 def backup_databases(keep: int = 30) -> list[Path]:
-    """Hot-backup both SQLite files using the sqlite3 backup API (safe while in use)."""
+    """Hot-backup the database using the sqlite3 backup API (safe while in use)."""
     cfg = load_config()
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     out: list[Path] = []
-    for src in (cfg.trading_db_path, cfg.longterm_db_path):
+    for src in (cfg.trading_db_path,):
         if not src.exists():
             continue
         dest = cfg.backup_dir / f"{src.stem}-{stamp}.db"
@@ -113,9 +102,8 @@ def daily_backup_if_needed() -> Path | None:
 
 
 def restore_note() -> str:
-    return ("To restore: stop the app, copy a file from the backups folder over data/trading.db "
-            "(or longterm.db), then restart.")
+    return "To restore: stop the app, copy a file from the backups folder over data/trading.db, then restart."
 
 
-__all__ = ["session_scope", "trading_engine", "longterm_engine", "make_engine",
+__all__ = ["session_scope", "trading_engine", "make_engine",
            "backup_databases", "daily_backup_if_needed", "restore_note"]

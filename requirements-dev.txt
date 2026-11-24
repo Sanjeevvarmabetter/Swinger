@@ -1,0 +1,4 @@
+-r requirements.txt
+# Browser QA (tests/e2e) — after installing run: python -m playwright install chromium
+playwright>=1.45
+pyflakes>=3.2

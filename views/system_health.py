@@ -18,8 +18,8 @@ force = c1.button("↻ Re-run checks")
 c2.caption("Checks call one real endpoint per capability with a tiny request (cached 1 hour). Keys are never shown.")
 with st.spinner("Probing providers…"):
     checks = pd.DataFrame(health.run_checks(force=force))
-STATUS_COLOR = {"OK": "color:#10B981", "NOT IN PLAN": "color:#F59E0B", "NOT CONFIGURED": "color:#94A3B8",
-                "ERROR": "color:#F43F5E", "RATE LIMITED": "color:#F59E0B", "EMPTY": "color:#F59E0B"}
+STATUS_COLOR = {"OK": "color:#2FBF71", "NOT IN PLAN": "color:#E9A23B", "NOT CONFIGURED": "color:#94A3B8",
+                "ERROR": "color:#EF5B67", "RATE LIMITED": "color:#E9A23B", "EMPTY": "color:#E9A23B"}
 st.dataframe(checks.style.map(lambda v: STATUS_COLOR.get(v, ""), subset=["status"]), hide_index=True, width="stretch")
 st.caption("NOT IN PLAN = the key works but the subscription does not include that endpoint; the app then uses another "
            "source or shows the gap explicitly instead of estimating.")

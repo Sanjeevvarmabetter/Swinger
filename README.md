@@ -1,88 +1,69 @@
-# AI Trading OS
+# Global Market Intelligence
 
-A personal swing-trading research terminal for US stocks and ETFs. It covers market intelligence, stock discovery, technical analysis, risk-managed trade planning, a trading journal and performance analytics. It's built in Python and Streamlit, with Gemini as the AI analyst.
+A personal daily-briefing and research terminal for **US and Indian markets, gold and commodities, geopolitics, macro
+and technology**. Python computes every number from free, delayed data sources; an AI model (Groq, with Gemini as
+fallback) only interprets that data, and every link it shows is checked against the sources it was given.
 
-> **Research tool, not advice.** Data is delayed or end-of-day from free sources. There is **no broker connection** and the app never places orders.
+There is no portfolio, trading, journal or broker functionality — this is a research and briefing tool.
 
-## Core principles
-- **Python calculates; Gemini interprets.** Indicators, levels, position size, risk/reward and P&L are all computed deterministically in Python. Gemini receives structured JSON and is instructed never to invent prices, levels, news or statistics.
-- **Every data point is labelled** with its source, market-data timestamp, retrieval time and freshness (Intraday-delayed / Current / Stale / Very stale / Missing).
-- **Risk first.** Every plan is reviewed by an independent risk engine and gets a verdict: *Plan eligible · Wait · Watch · Avoid*. The engine never suggests raising risk to take a trade.
-- **Separate money.** Long-term investments live in a separate database (`longterm.db`) and are never counted as trading capital.
+## Principles
+- **No invented data.** Every price, change, calendar date and headline comes from a named source with a timestamp
+  and a freshness label. When a source is missing or unavailable, the page says so instead of filling the gap.
+- **Python computes, AI interprets.** The AI receives structured JSON and cites items by id; Python turns ids into
+  links and strips any URL that was not supplied.
+- **Works without AI.** Every page except the chat is fully usable without an AI key.
+- **Mobile first.** Every page is tested at 360–1920 px wide; phones get a bottom navigation bar.
 
-## Setup (macOS / Linux)
-
-```bash
-cd Swinger
-python3.12 -m venv .venv            # or: uv venv -p 3.12 .venv
-source .venv/bin/activate
-pip install -r requirements.txt     # or: uv pip install -r requirements.txt
-cp .env.example .env                # then edit .env
-streamlit run app.py                # opens http://127.0.0.1:8501
-```
-
-### Configure `.env`
-| Variable | Required? | What it does |
+## Pages
+| Group | Page | What it does |
 |---|---|---|
-| `GEMINI_API_KEY` | For AI features | Get a key at https://aistudio.google.com/apikey. Without it, every deterministic feature still works and the AI buttons are disabled with an explanation. |
-| `GEMINI_MODEL` | Optional | Default `gemini-2.5-flash`. Any model your key can access. |
-| `GEMINI_MIN_INTERVAL_SECONDS`, `GEMINI_MAX_RETRIES` | Optional | Client-side rate limiting and retry with backoff. |
-| `SEC_USER_AGENT` | Optional | Enables SEC EDGAR filings. The SEC requires a descriptive User-Agent with contact info, e.g. `AI-Trading-OS your-name your-email@example.com`. |
-| `FRED_API_KEY` | Optional | FRED macro data works without a key via the public CSV endpoint. |
-| `TRADINGOS_DATA_DIR` | Optional | Where the databases, cache, backups and reports live (default `./data`, git-ignored). |
+| — | **Daily Briefing** (home) | Market strip, *Must know* stories, top items per area (US, India, gold, geopolitics, economy, tech, global), X discussions, next-72-hour catalysts, AI-written editions and the facts-only edition |
+| Markets | Global Markets · US Markets · Indian Markets · Gold & Commodities | Cross-market tiles, heat maps, risk-appetite checklist, sector/theme leadership, gold driver checks, CFTC positioning |
+| Intelligence | Geopolitics · X Intelligence · Live Newsroom · Global Trends Radar · Economic Calendar · News Archive | 16 geopolitical theaters; official X API posts; official YouTube live streams; theme stages; official release schedules and central banks; searchable stored news and past briefings |
+| Research | AI Research Chat | Streaming, grounded Q&A with persistent history, verified citations and answer caching |
+| System | Settings · System Health | Provider status and connection tests, research parameters, backups; live endpoint checks and feed health |
 
-Use **Settings → Test Gemini connection** to confirm the key works.
-
-### Settings to review on first run (Settings page)
-- **Capital & risk:** $300 starting capital, 1% risk per trade, 2% max open risk, 3 positions (all configurable).
-- **Share increment:** with $300 and 1% risk, your risk budget is **$3**. With whole shares, any stock whose stop is more than $3 below entry can't be traded within the limit, and the planner says so. If Vested supports fractional orders for a stock, set the increment to 0.01.
-- **Costs are placeholders.** Check commission, FX markup, spread and slippage against **Vested's current pricing page** and your bank's FX rates. The tax rate is a rough estimate (Indian residents generally pay slab rates on short-term gains on US stocks); consult a tax professional.
-
-## Daily workflow (about 15 minutes)
-1. **Command Centre**: regime, indices, sectors, open trades, alerts.
-2. **News & Catalysts → Refresh news**, then **Market Intelligence → Daily report** (with optional Gemini brief).
-3. **Stock Scanner → Run scan**: review the categories; an empty result is a valid result.
-4. **Technical Analysis** on two or three candidates, then **Trade Planner**: check the verdict, the checks and the profit-booking plan. Optionally get a Gemini critique, then **Save plan**.
-5. After you place an order on Vested yourself, use **Trading Journal → Record new trade** with your *actual* fill (or import your trade statement CSV via **Trading Journal → Import CSV**). Attach entry and exit chart screenshots for your post-trade reflection.
-6. Weekly: **Performance Analytics → Weekly review**, and tax season: **Performance Analytics → Indian Tax Report** for FY-wise INR capital gains computation (Schedule CG & Schedule FA).
-
-## Scheduled automation (optional)
+## Quick start
 ```bash
-.venv/bin/python scripts/daily_briefing.py --ai     # news + scan + markdown brief → data/reports/
-.venv/bin/python scripts/check_alerts.py            # watchlist levels, stops/targets on latest close
-.venv/bin/python scripts/weekly_review.py --days 7 --ai
-.venv/bin/python scripts/backup.py
+uv venv .venv --python 3.12 && uv pip install --python .venv/bin/python -r requirements.txt
+cp .env.example .env          # add GROQ_API_KEY and/or GEMINI_API_KEY (both optional)
+.venv/bin/streamlit run app.py
 ```
-Example crontab (IST times):
-```
-0 19 * * 1-5  cd ~/projects/Swinger && .venv/bin/python scripts/daily_briefing.py --ai >> data/reports/cron.log 2>&1
-30 3 * * 2-6  cd ~/projects/Swinger && .venv/bin/python scripts/check_alerts.py >> data/reports/cron.log 2>&1
-0 10 * * 6    cd ~/projects/Swinger && .venv/bin/python scripts/weekly_review.py --ai >> data/reports/cron.log 2>&1
+Optional keys: `FRED_API_KEY` (release calendar), `FINNHUB_API_KEY` (news, earnings/IPO calendars), `FMP_API_KEY`,
+`SEC_USER_AGENT` (EDGAR filings), `X_BEARER_TOKEN` (X Intelligence — paid X API access).
+
+## Scheduled briefings
+```bash
+.venv/bin/python scripts/intel_scheduler.py --list                 # editions and next run times
+.venv/bin/python scripts/intel_scheduler.py --edition global_morning
+# crontab: generate due editions every 15 minutes (each edition is made once per day)
+*/15 * * * * cd ~/projects/Swinger && .venv/bin/python scripts/intel_scheduler.py >> data/reports/scheduler.log 2>&1
 ```
 
 ## Testing
 ```bash
-.venv/bin/python -m pytest -q
+.venv/bin/python -m pytest -q                                    # unit/integration tests, no network
+uv pip install --python .venv/bin/python -r requirements-dev.txt && .venv/bin/python -m playwright install chromium
+.venv/bin/streamlit run app.py --server.port 8599 &               # then, in another shell:
+.venv/bin/python tests/e2e/ui_audit.py --out data/qa_screens      # every page × 9 viewports
+.venv/bin/python tests/e2e/chat_flow.py --width 390               # LIVE: one real AI request
+.venv/bin/python tests/live/ai_eval.py --out data/qa_ai           # LIVE: 9 AI research scenarios
 ```
-The 76 tests cover indicators (including Wilder RSI and ATR), support/resistance from data, position sizing, the cost model, verdict logic, aggregate-risk and max-position limits, journal persistence, partial exits, R-multiples, **immutability of the original thesis**, the cash and equity math, performance metrics and drawdown, behaviour diagnostics, NYSE holiday and freshness logic, news de-duplication and stale filtering, provider outages, missing prices, the scanner returning nothing when nothing qualifies, Gemini payload handling (with a mocked client), **long-term/trading separation**, Vested and statement CSV parsing and fill execution, screenshot upload storage, alert notification dispatching (ntfy/Telegram/Webhook), and Indian capital gains tax math (STCG vs LTCG in INR). Tests use a temporary data directory and a fake data provider, so they never touch your journal or the network.
+See [QA_REPORT.md](QA_REPORT.md) for the latest results.
 
 ## Data sources and limits
 | Area | Source | Notes |
 |---|---|---|
-| Prices, fundamentals, earnings dates, ticker news | Yahoo Finance via `yfinance` | Unofficial and delayed. Earnings dates can be estimates, so confirm them on the company IR site. |
-| Macro | FRED (St. Louis Fed) | Each series shows its own observation date. |
-| News | CNBC, FT, Federal Reserve, BEA, BLS RSS feeds (editable in `config/news_feeds.json`) | Reuters has no public RSS. Bloomberg and WSJ are mostly paywalled; the WSJ feed is configured but has been stale since Jan 2025, so the stale filter drops it. |
-| Filings | SEC EDGAR | Needs `SEC_USER_AGENT`. |
-| Indian MFs (long-term page) | api.mfapi.in (AMFI NAVs) | Free public API. |
-| Economic calendar | **Manual** (Earnings Calendar → Economic events) | No free, reliable calendar API exists, so links to the official Fed, BLS and BEA schedules are provided. |
-
-Market breadth is computed across the scan universe (about 180 stocks) and labelled as a proxy, not exchange-wide advance/decline data.
+| Prices | Yahoo Finance via `yfinance` | Unofficial, delayed daily bars — never real-time. |
+| Macro, US release calendar | FRED (St. Louis Fed) | Each series shows its own observation date. No consensus forecasts (none on current plans; never estimated). |
+| News | RSS feeds in `config/news_feeds.json`, Finnhub, SEC EDGAR | Headlines and short summaries only. |
+| X posts | Official X API v2 recent search | Disabled until `X_BEARER_TOKEN` is set; daily request budget enforced. |
+| Live TV | Official YouTube channels in `config/live_channels.json` | Embeds depend on the broadcaster being live and allowing embedding. |
+| AI | Groq (`openai/gpt-oss-120b`, fallbacks) and Google Gemini | Groq free tier ≈ 8,000 tokens/minute; Gemini free tier ≈ 20 requests/day per model. |
 
 ## Security
-- Secrets live only in `.env` (git-ignored) and are never displayed, logged or sent to the browser.
-- The Streamlit server binds to `127.0.0.1` (see `.streamlit/config.toml`).
-- Personal data (`data/`: journal, portfolio, backups, reports) is git-ignored.
-- SQLite databases are backed up automatically once a day on app start (the last 30 are kept), and you can also back up manually from the Journal page or `scripts/backup.py`.
-- No brokerage integration and no order execution.
+- Secrets live only in `.env` / Streamlit secrets and are never displayed, logged or sent to the browser.
+- The Streamlit server binds to `127.0.0.1` by default (`.streamlit/config.toml`).
+- `data/` (news archive, briefings, chat history, backups) is git-ignored; one automatic backup is made per day.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design, database schema and roadmap.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design.

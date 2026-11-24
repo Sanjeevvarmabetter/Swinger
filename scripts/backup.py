@@ -1,4 +1,4 @@
-"""Back up trading.db and longterm.db (keeps last 30 of each).  Usage: python scripts/backup.py"""
+"""Back up the intelligence database (keeps the last 30).  Usage: python scripts/backup.py"""
 import _bootstrap  # noqa: F401
 
 from tradingos.db.session import backup_databases

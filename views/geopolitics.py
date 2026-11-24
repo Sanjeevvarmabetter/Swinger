@@ -93,7 +93,8 @@ with t_theater:
                "market_reaction": mr, "events": cards[:10],
                "attention": att[att["key"] == key].drop(columns=["lat", "lon"]).to_dict("records")}
     ui.gemini_panel(f"geo_{key}", f"Analyse {th.name}",
-                    lambda: gemini.intel_analysis("geopolitical_analyst", payload, th.name))
+                    lambda: gemini.intel_analysis("geopolitical_analyst", payload, th.name),
+                    payload_for_links=payload)
 
 with t_timeline:
     win = st.select_slider("Timeline window", [7, 14, 30], value=14, format_func=lambda d: f"{d} days")
@@ -103,7 +104,7 @@ with t_timeline:
         ui.empty_state("No geopolitical stories in the window.")
     else:
         size = {"MUST KNOW": 16, "IMPORTANT": 11, "INTERESTING": 7}
-        color = {"MUST KNOW": "#F43F5E", "IMPORTANT": "#F59E0B", "INTERESTING": "#38BDF8"}
+        color = {"MUST KNOW": "#EF5B67", "IMPORTANT": "#E9A23B", "INTERESTING": "#4EA8F2"}
         fig = go.Figure()
         for tier in ("INTERESTING", "IMPORTANT", "MUST KNOW"):
             d = tl[tl["tier"] == tier]
@@ -133,7 +134,7 @@ with t_map:
             lat=m["lat"], lon=m["lon"], text=m["Theater"], mode="markers+text", textposition="top center",
             textfont=dict(color="#CBD5E1", size=10),
             marker=dict(size=[8 + 2.2 * v ** 0.75 for v in m["Stories 7d"]], color=m["Stories 7d"],
-                        colorscale=[[0, "#1E3A5F"], [1, "#F43F5E"]], opacity=0.85, line=dict(width=0.5, color="#0B0F17"),
+                        colorscale=[[0, "#1E3A5F"], [1, "#EF5B67"]], opacity=0.85, line=dict(width=0.5, color="#0B0F17"),
                         showscale=False),
             customdata=m[["Stories 7d", "Trend"]].values,
             hovertemplate="%{text}<br>%{customdata[0]} stories (7d) · %{customdata[1]}<extra></extra>"))

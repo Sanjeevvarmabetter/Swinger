@@ -1,7 +1,7 @@
 """Technical analysis built ONLY from supplied price data.
 
 Produces a structured snapshot (trend, levels, momentum, volume, setup, extension) that the
-UI, scanner, trade planner and Gemini all share. Support/resistance come from clustered
+company research snapshots share. Support/resistance come from clustered
 swing pivots — never invented.
 """
 from __future__ import annotations
@@ -175,93 +175,3 @@ def _stop_from(entry: float, support: float | None, a: float) -> tuple[float, st
         if entry - 3 * a <= cand <= entry - 0.75 * a:
             return cand, f"0.25×ATR below support {support:.2f}"
     return entry - 2 * a, "2×ATR below entry (no support within 0.75–3 ATR)"
-
-
-def suggest_levels(snap: dict, setup: str) -> dict:
-    """Deterministic entry/stop/target proposal from the snapshot. User can override everything."""
-    if "error" in snap or not snap.get("atr14"):
-        return {"error": snap.get("error", "ATR unavailable")}
-    c, a = snap["close"], snap["atr14"]
-    supports = [l["price"] for l in snap["supports"]]
-    resist = [l["price"] for l in snap["resistances"]]
-    setup_l = setup.lower()
-    if "breakout" in setup_l and snap.get("breakout_level"):
-        bl = snap["breakout_level"]
-        entry = max(c, bl + 0.1 * a)
-        trigger = f"Daily close above {bl + 0.1 * a:.2f} (range high {bl:.2f} + 0.1 ATR) on above-average volume"
-        sup = bl if bl < entry else next((p for p in supports if p < entry), None)
-    elif "pullback" in setup_l:
-        entry = c
-        mas = ", ".join(f"{n} {snap[k]:.2f}" for n, k in (("20DMA", "sma20"), ("50DMA", "sma50")) if snap.get(k))
-        trigger = ("Pullback holds the moving-average zone (" + mas + ") and prints a bullish reversal day "
-                   "(close above the prior day's high)")
-        sup = next((p for p in supports if p < entry), snap.get("sma50"))
-    else:
-        entry = c
-        trigger = f"Continuation: hold above 20DMA ({snap['sma20']:.2f})" if snap.get("sma20") else "Continuation"
-        sup = next((p for p in supports if p < entry), snap.get("sma20"))
-    stop, stop_basis = _stop_from(entry, sup, a)
-    r = entry - stop
-    above = [p for p in resist if p > entry + 0.25 * a]
-    if above:
-        t1, t1_basis = above[0], "nearest resistance in data"
-    else:
-        t1, t1_basis = entry + 2 * r, "2R projection (no overhead resistance in available data)"
-    if len(above) > 1:
-        t2, t2_basis = above[1], "next resistance in data"
-    else:
-        t2, t2_basis = max(entry + 3 * r, t1 + r), "3R projection (no further resistance in data)"
-    notes = []
-    if above and above[0] < entry + r:
-        notes.append(f"Overhead resistance at {above[0]:.2f} is less than 1R away — reward/risk likely poor.")
-    if snap.get("overextended"):
-        notes.append("Price is extended (>2.5 ATR above 20DMA or RSI>75): chasing risk.")
-    return {"entry": round(entry, 2), "stop": round(stop, 2), "target1": round(t1, 2), "target2": round(t2, 2),
-            "entry_trigger": trigger, "stop_basis": stop_basis, "target1_basis": t1_basis,
-            "target2_basis": t2_basis, "notes": notes}
-
-
-def explain(snap: dict) -> dict[str, str]:
-    """Plain-English, deterministic read of the snapshot (every number comes from the data)."""
-    if "error" in snap:
-        return {"Error": snap["error"]}
-    f2 = lambda x: "n/a" if x is None else f"{x:.2f}"  # noqa: E731
-    sup = snap["supports"]
-    res = snap["resistances"]
-    rsi_v, rv = snap["rsi14"], snap["rel_volume"]
-    mom = []
-    if rsi_v is not None:
-        mom.append(f"RSI {rsi_v:.1f} ({'overbought >70' if rsi_v > 70 else 'oversold <30' if rsi_v < 30 else 'bullish zone 50–70' if rsi_v >= 50 else 'bearish zone <50'})")
-    mom.append("MACD above signal (positive momentum)" if snap["macd_bullish"] else "MACD below signal (fading momentum)")
-    if snap["rs_vs_spy_pp"] is not None:
-        mom.append(f"{snap['rs_vs_spy_pp']:+.1f}pp vs SPY over the RS window")
-    vol = f"Relative volume {f2(rv)}× 20-day average"
-    udr = snap.get("up_down_volume_ratio_10d")
-    if udr is not None:
-        vol += f"; up-day/down-day volume ratio (10d) {udr:.2f} ({'accumulation' if udr > 1.2 else 'distribution' if udr < 0.8 else 'neutral'})"
-    s1 = sup[0]["price"] if sup else None
-    r1 = res[0]["price"] if res else None
-    zones = []
-    if snap.get("breakout_level") and snap["close"] <= snap["breakout_level"] * 1.03:
-        zones.append(f"Breakout trigger above range high {snap['breakout_level']:.2f} with volume")
-    if snap.get("sma20") and snap["above_sma50"]:
-        zones.append(f"Pullback toward 20DMA {snap['sma20']:.2f}" + (f" / 50DMA {snap['sma50']:.2f}" if snap.get("sma50") else ""))
-    if s1:
-        zones.append(f"Retest of support {s1:.2f}")
-    inval = (f"Daily close below support {s1:.2f}" if s1 else
-             f"Close below 50DMA {snap['sma50']:.2f}" if snap.get("sma50") else "No clear level in data")
-    ext = snap.get("extension_atr_above_sma20")
-    return {
-        "1. Trend": f"{snap['trend']} · {snap['structure']}. Price {snap['close']:.2f} vs 20/50/200DMA "
-                    f"{f2(snap['sma20'])} / {f2(snap['sma50'])} / {f2(snap['sma200'])}.",
-        "2. Support": ", ".join(f"{l['price']:.2f} ({l['touches']} touches, last {l['last_touch']})" for l in sup) or "No pivot support below price in lookback.",
-        "3. Resistance": ", ".join(f"{l['price']:.2f} ({l['touches']} touches)" for l in res) or "No overhead resistance in lookback (at highs).",
-        "4. Momentum": "; ".join(mom) + (f". Extension {ext:.1f} ATR above 20DMA" if ext is not None else ""),
-        "5. Volume": vol,
-        "6. Possible entry zones": "; ".join(zones) or "None identified from current data.",
-        "7. Invalidation": inval,
-        "8. Bullish scenario": (f"Holds above {f2(s1 or snap.get('sma20'))} and clears {f2(r1)} on above-average volume → "
-                                f"next reference {f2(res[1]['price']) if len(res) > 1 else '52w high ' + f2(snap['high_52w'])}."),
-        "9. Bearish scenario": (f"Fails at {f2(r1)} or loses {f2(s1 or snap.get('sma50'))} → trend weakens; "
-                                f"next reference {f2(sup[1]['price']) if len(sup) > 1 else '200DMA ' + f2(snap['sma200'])}."),
-    }

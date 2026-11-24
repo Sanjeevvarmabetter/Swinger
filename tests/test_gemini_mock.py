@@ -1,4 +1,4 @@
-"""Gemini integration tested with a mocked transport (no network, no key needed)."""
+"""AI integration tested with a mocked transport (no network, no key needed)."""
 import json
 
 import pytest
@@ -11,16 +11,16 @@ def test_ai_function_sends_structured_data_and_audits(monkeypatch):
     class FakeClient(gemini.GeminiClient):
         def generate(self, prompt, system=gemini.BASE_SYSTEM, temperature=0.3, max_output_tokens=8192):
             captured["prompt"], captured["system"] = prompt, system
-            return "## Review\nLooks extended; wait."
+            return "## Impact\nMixed."
 
     monkeypatch.setattr(gemini, "_CLIENT", FakeClient())
-    out = gemini.trade_plan_review("ABC", {"plan": {"entry": 20.0, "stop": 19.0, "rr": float("nan")}})
-    assert out.startswith("## Review")
-    assert "TASK:" in captured["prompt"] and '"entry": 20.0' in captured["prompt"]
-    assert '"rr": null' in captured["prompt"]           # NaN scrubbed, never invented
+    out = gemini.news_impact({"headlines": [{"headline": "Fed holds", "score": float("nan")}]})
+    assert out.startswith("## Impact")
+    assert "TASK:" in captured["prompt"] and '"headline":"Fed holds"' in captured["prompt"]
+    assert '"score":null' in captured["prompt"]           # NaN scrubbed, never invented
     assert "Never invent prices" in captured["system"]
-    rep = gemini.recent_reports("trade_plan_review")
-    assert rep and rep[0].subject == "ABC" and json.loads(rep[0].input_json)["plan"]["stop"] == 19.0
+    rep = gemini.recent_reports("news_impact")
+    assert rep and json.loads(rep[0].input_json)["headlines"][0]["headline"] == "Fed holds"
 
 
 def test_error_mapping_401(monkeypatch):

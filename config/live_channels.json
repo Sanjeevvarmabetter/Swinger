@@ -1,0 +1,17 @@
+{
+  "_comment": "Official YouTube channels only. Channel IDs verified against youtube.com on 2026-11-25. The embed shows the channel's current live stream; if the channel is not live or disallows embedding, use the 'Open on YouTube' link.",
+  "channels": [
+    {"name": "Bloomberg Television", "region": "Global", "channel_id": "UCIALMKvObZNtJ6AmdCLP7Lg"},
+    {"name": "CNBC Television", "region": "US", "channel_id": "UCrp_UI8XtuYfpiqluWLD7Lw"},
+    {"name": "Yahoo Finance", "region": "US", "channel_id": "UCEAZeUIeJs0IjQiqTCdVSIg"},
+    {"name": "CNBC-TV18", "region": "India", "channel_id": "UCmRbHAgG2k2vDUvb3xsEunQ"},
+    {"name": "ET Now", "region": "India", "channel_id": "UCI_mwTKUhicNzFrhm33MzBQ"},
+    {"name": "NDTV Profit", "region": "India", "channel_id": "UC3uJIdRFTGgLWrUziaHbzrg"},
+    {"name": "Zee Business", "region": "India", "channel_id": "UCkXopQ3ubd-rnXnStZqCl2w"},
+    {"name": "Reuters", "region": "Global", "channel_id": "UChqUTb7kYRX8-EiaN3XFrSQ"},
+    {"name": "Sky News", "region": "Global", "channel_id": "UCoMdktPbSTixAyNGwb-UYkQ"},
+    {"name": "Al Jazeera English", "region": "Global", "channel_id": "UCNye-wNBqNL5ZzHSJj3l8Bg"},
+    {"name": "DW News", "region": "Global", "channel_id": "UCknLrEdhRCp1aegoMqRaCZg"},
+    {"name": "FRANCE 24 English", "region": "Global", "channel_id": "UCQfwfsi5VrQ8yKZ-UWmAEFg"}
+  ]
+}

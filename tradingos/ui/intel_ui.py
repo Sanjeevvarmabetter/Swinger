@@ -20,6 +20,7 @@ FRESH_CHIP = {
     Freshness.MISSING.value: ("Missing", "tos-red"),
 }
 PCT_COLS = ["1D %", "1W %", "1M %", "3M %", "YTD %", "1Y %"]
+STATIC_CHART = {"displayModeBar": False, "scrollZoom": False}   # heat grids: no toolbar overlapping labels on touch
 
 
 def _nonce() -> int:
@@ -93,15 +94,15 @@ def meta_line(meta: dict) -> None:
         st.caption(meta["note"])
 
 
-def tiles(df: pd.DataFrame, symbols: list[str], per_row: int = 5, fmt: dict[str, str] | None = None) -> None:
-    """Compact metric cards with 1D change, last-bar date and freshness. Skips nothing silently: missing → 'n/a'."""
+def tiles(df: pd.DataFrame, symbols: list[str], per_row: int = 5, fmt: dict[str, str] | None = None) -> None:  # noqa: ARG001
+    """Responsive grid of market tiles (auto-fills columns; two per row on phones). Missing data shows 'n/a'."""
     from tradingos.intel.markets import row
     fmt = fmt or {}
     cards = []
     for sym in symbols:
         r = row(df, sym)
         if r is None:
-            name = df.loc[df["Symbol"] == sym, "Name"]
+            name = df.loc[df["Symbol"] == sym, "Name"] if "Symbol" in df else pd.Series(dtype=str)
             cards.append(ui.terminal_metric_card(name.iloc[0] if len(name) else sym, "n/a", sub="no data returned",
                                                  badge_label="Missing", badge_color="red"))
             continue
@@ -110,13 +111,10 @@ def tiles(df: pd.DataFrame, symbols: list[str], per_row: int = 5, fmt: dict[str,
         color = {"Current": "green", "Delayed intraday": "blue", "Stale": "amber"}.get(label, "red")
         inverse = sym in ("^VIX", "^INDIAVIX", "^MOVE")
         cards.append(ui.terminal_metric_card(r["Name"], val, delta=ui.pct(r["1D %"], 2), delta_pct=r["1D %"],
-                                             sub=f"1W {ui.pct(r['1W %'])} · 1M {ui.pct(r['1M %'])} · bar {r['Last bar']}",
+                                             sub=f"1W {ui.pct(r['1W %'])}",
                                              sparkline_vals=r["sparkline"], inverse=inverse,
-                                             badge_label=label, badge_color=color))
-    for i in range(0, len(cards), per_row):
-        cols = st.columns(per_row)
-        for c, card in zip(cols, cards[i:i + per_row]):
-            c.markdown(card, unsafe_allow_html=True)
+                                             badge_label=f"{label} · last bar {r['Last bar']}", badge_color=color))
+    st.markdown(f'<div class="tile-grid">{"".join(cards)}</div>', unsafe_allow_html=True)
 
 
 def perf_table(df: pd.DataFrame, height: int | None = None, show_group: bool = False) -> None:
@@ -151,8 +149,9 @@ def heatmap(df: pd.DataFrame, cols: list[str] | None = None, title: str = "", he
         text=[[("—" if pd.isna(v) else f"{v:+.1f}") for v in rowv] for rowv in z], texttemplate="%{text}",
         textfont=dict(family="JetBrains Mono, monospace", size=11), showscale=False,
         hovertemplate="%{y} · %{x}: %{z:+.2f}%<extra></extra>"))
-    fig.update_layout(title=dict(text=title, x=0.01, font=dict(size=12)), hovermode="closest")
-    fig = charts._layout(fig, height or max(220, 26 * len(d) + 60))
+    fig.update_layout(title=dict(text=title, x=0.01, y=0.995, yanchor="top", font=dict(size=12)), hovermode="closest")
+    fig = charts._layout(fig, height or max(240, 26 * len(d) + 90))
+    fig.update_layout(margin=dict(l=8, r=8, t=64 if title else 30, b=8), dragmode=False)
     fig.update_yaxes(autorange="reversed", side="left", showspikes=False)
     fig.update_xaxes(side="top", showspikes=False)
     return fig
@@ -167,7 +166,7 @@ def rebased_chart(closes_: dict[str, pd.Series], names: dict[str, str], days: in
         s = s[s.index >= s.index[-1] - pd.Timedelta(days=days)]
         series[name] = (s / s.iloc[0] - 1) * 100
     fig = go.Figure()
-    palette = ["#38BDF8", "#10B981", "#F59E0B", "#A855F7", "#F43F5E", "#E2E8F0", "#22D3EE", "#FB923C"]
+    palette = ["#4EA8F2", "#2FBF71", "#E9A23B", "#A855F7", "#EF5B67", "#E2E8F0", "#22D3EE", "#FB923C"]
     for i, (n, s) in enumerate(series.items()):
         fig.add_trace(go.Scatter(x=s.index, y=s.values, name=n, line=dict(width=1.6, color=palette[i % len(palette)])))
     fig.add_hline(y=0, line=dict(color="#334155", dash="dot"))
@@ -181,35 +180,53 @@ INFO_TAG = {"Confirmed": ("FACT", "tos-green"), "Reported": ("REPORTED", ""), "A
             "Speculation": ("UNVERIFIED", "tos-red")}
 
 
-def story_card(r: dict | pd.Series) -> str:
-    tier_icon, tier_cls = TIER_STYLE.get(r["tier"], ("", ""))
+TIER_CLASS = {"MUST KNOW": "must", "IMPORTANT": "imp", "INTERESTING": "int"}
+CATEGORY_LABEL = {"macro": "Economy", "geopolitics": "Geopolitics", "technology": "Tech & AI", "earnings": "Earnings",
+                  "commodities": "Commodities", "markets": "Markets", "regulation": "Regulation", "company": "Company"}
+
+
+def _when(pub) -> str:
+    if pub is None or (not isinstance(pub, str) and pd.isna(pub)):
+        return "time n/a"
+    ts = pd.Timestamp(pub)
+    return ts.strftime("%d %b %H:%M UTC")
+
+
+def story_card(r: dict | pd.Series, show_score: bool = False) -> str:
+    """One news item: importance + verification tags, headline (linked), short explanation, market, source, time."""
+    tier = str(r.get("tier", ""))
+    tier_icon, tier_cls = TIER_STYLE.get(tier, ("", ""))
     tag, tag_cls = next((v for k, v in INFO_TAG.items() if str(r.get("info_type", "")).startswith(k)), ("REPORTED", ""))
-    pub = r.get("published_utc")
-    pub_s = pd.Timestamp(pub).strftime("%d %b %H:%M UTC") if pub is not None and pd.notna(pub) else "time n/a"
-    url = html.escape(r.get("url") or "#", quote=True)
-    also = f' · also {html.escape(str(r["also_reported_by"])[:120])}' if r.get("also_reported_by") else ""
-    impact = (f'<div style="font-size:0.74rem;color:#94A3B8;margin-top:3px;">Rule-based impact note '
-              f'(interpretation): {html.escape(r["impact"])}</div>') if r.get("impact") else ""
+    url = ui.safe_url(r.get("url"))
+    summary = str(r.get("summary") or "").strip()
+    if len(summary) > 260:
+        summary = summary[:257].rsplit(" ", 1)[0] + "…"
+    body = f'<div class="story-body">{html.escape(summary)}</div>' if summary and summary != r["headline"] else ""
+    impact = (f'<div class="story-body" style="margin-top:4px"><b>Why it may matter (rule-based):</b> '
+              f'{html.escape(str(r["impact"]))}</div>') if r.get("impact") else ""
+    market = " · ".join(x for x in [r.get("region") or "", CATEGORY_LABEL.get(str(r.get("category")), "")] if x)
+    also = f' · also reported by {html.escape(str(r["also_reported_by"])[:100])}' if r.get("also_reported_by") else ""
+    score = f' · score {r["score"]}' if show_score and r.get("score") is not None else ""
+    chips = (ui.chip(tier.title(), tier_cls) if tier in TIER_CLASS else "") + ui.chip(tag, tag_cls) \
+        + (ui.chip(market) if market else "")
     return (
-        f'<div class="term-card" style="margin-bottom:6px;">'
-        f'<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">'
-        f'<div>{ui.chip(tier_icon + " " + r["tier"], tier_cls)} {ui.chip(tag, tag_cls)} {ui.chip(r.get("region") or "")} '
-        f'<span style="font-size:0.72rem;color:#64748B;">{html.escape(str(r.get("source", "")))} · {pub_s}{also}</span></div>'
-        f'<a href="{url}" target="_blank" style="color:#38BDF8;font-size:0.75rem;text-decoration:none;white-space:nowrap;">Source ↗</a>'
-        f'</div>'
-        f'<div style="font-weight:600;font-size:0.9rem;color:#F1F5F9;margin-top:4px;">{html.escape(r["headline"])}</div>'
-        f'<div style="font-size:0.72rem;color:#64748B;margin-top:2px;">score {r["score"]} · {html.escape(str(r.get("reasons", "")))}</div>'
-        f'{impact}</div>'
+        f'<article class="story {TIER_CLASS.get(tier, "")}">'
+        f'<div class="chips">{chips}</div>'
+        f'<div class="story-head"><a href="{url}" target="_blank" rel="noopener noreferrer">{html.escape(r["headline"])}</a></div>'
+        f'{body}{impact}'
+        f'<div class="story-meta">{html.escape(str(r.get("source", "")))} · {_when(r.get("published_utc"))}{also}{score} · '
+        f'<a href="{url}" target="_blank" rel="noopener noreferrer">Open source ↗</a></div>'
+        f'</article>'
     )
 
 
 def story_list(ranked: pd.DataFrame, n: int = 12, tiers: tuple[str, ...] = ("MUST KNOW", "IMPORTANT", "INTERESTING"),
-               empty: str = "No stories. Refresh news from the Daily Briefing or News page.") -> None:
+               empty: str = "No stories yet. Use “Refresh news” to fetch the feeds.", show_score: bool = False) -> None:
     d = ranked[ranked["tier"].isin(tiers)].head(n) if len(ranked) else ranked
     if d is None or d.empty:
         ui.empty_state(empty)
         return
-    st.markdown("".join(story_card(r) for _, r in d.iterrows()), unsafe_allow_html=True)
+    st.markdown("".join(story_card(r, show_score) for _, r in d.iterrows()), unsafe_allow_html=True)
 
 
 def unavailable_box(items: list[tuple[str, str, str]]) -> None:
@@ -219,15 +236,14 @@ def unavailable_box(items: list[tuple[str, str, str]]) -> None:
 
 
 def page_header(title: str, subtitle: str) -> None:
-    st.markdown(f"## {title}")
-    st.caption(subtitle)
+    ui.page_header(title, subtitle)
 
 
 def utc_now_str() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
 
-# ----------------------------------------------------------------------------- Stage 2 cached accessors
+# ----------------------------------------------------------------------------- news / geopolitics / trends cached accessors
 @st.cache_data(ttl=900, show_spinner=False)
 def _news_raw(days: int, nonce: int) -> pd.DataFrame:  # noqa: ARG001
     from tradingos.data.news import query_news
@@ -260,8 +276,8 @@ def radar():
     return _radar(_nonce() + st.session_state.get("news_nonce", 0))
 
 
-def news_refresh_button(key: str, label: str = "↻ Refresh news feeds") -> None:
-    if st.button(label, key=key):
+def news_refresh_button(key: str, label: str = "Refresh news") -> None:
+    if st.button(label, key=key, icon=":material/refresh:"):
         from tradingos.data.news import refresh_news
         with st.spinner("Fetching RSS, Finnhub and official feeds…"):
             s = refresh_news([], max_age_days=35)

@@ -141,11 +141,11 @@ def market_regime(idx: pd.DataFrame, spy: pd.DataFrame | None, breadth: dict | N
         label = "Risk-off / downtrend"
         category = "Risk-off / Bearish trend"
     guidance = {
-        "Risk-on uptrend": "Environment supports swing longs; still respect position limits.",
-        "Uptrend under pressure / mixed": "Be selective: only A-grade setups, consider smaller risk.",
-        "Choppy / defensive": "Breakouts tend to fail more in chop; favour cash or very selective pullbacks.",
-        "Risk-off / downtrend": "Most long setups fight the tape. Cash is a position.",
-        "High-volatility stress": "Gaps and wide ranges make stops unreliable. Reduce activity.",
+        "Risk-on uptrend": "Broad trend and breadth are supportive; leadership is spread across the market.",
+        "Uptrend under pressure / mixed": "Trend intact but signals are mixed — leadership is narrowing.",
+        "Choppy / defensive": "No clear trend; breakouts have tended to fail more often in such conditions.",
+        "Risk-off / downtrend": "Indices below key averages and breadth weak — defensive market conditions.",
+        "High-volatility stress": "Volatility is elevated; daily moves and gaps are larger than usual.",
     }.get(label, "")
     return {
         "label": label, "category": category, "score": score, "max_score": max_score,

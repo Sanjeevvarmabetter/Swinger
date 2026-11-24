@@ -1,8 +1,6 @@
 """Orchestration layer: assembles structured, timestamped context for UI, scripts and Gemini."""
 from __future__ import annotations
 
-import json
-from dataclasses import asdict
 from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
@@ -10,16 +8,14 @@ from sqlalchemy import select
 
 from tradingos.analysis import indicators as ind
 from tradingos.analysis.market import index_overview, market_regime, sector_performance, universe_breadth
-from tradingos.analysis.technical import analyze, suggest_levels
+from tradingos.analysis.technical import analyze
 from tradingos.data.base import market_status
 from tradingos.data.macro import macro_snapshot, recession_signals
 from tradingos.data.news import query_news
 from tradingos.data.providers import SECTOR_ETFS, get_market_provider, load_universe
-from tradingos.db.models import EconEvent, TradePlan
+from tradingos.db.models import EconEvent
 from tradingos.db.session import session_scope
-from tradingos.journal.service import account_state, sizing_equity
-from tradingos.risk.engine import context_checks, evaluate_trade
-from tradingos.settings import TradingSettings
+from tradingos.settings import AppSettings
 
 INFO_FIELDS = ["shortName", "longName", "sector", "industry", "marketCap", "trailingPE", "forwardPE",
                "priceToSalesTrailing12Months", "revenueGrowth", "earningsGrowth", "grossMargins",
@@ -90,7 +86,7 @@ def fundamentals(ticker: str) -> dict:
     return out
 
 
-def stock_context(ticker: str, cfg: TradingSettings, with_fundamentals: bool = True, force: bool = False) -> dict:
+def stock_context(ticker: str, cfg: AppSettings, with_fundamentals: bool = True, force: bool = False) -> dict:
     ticker = ticker.strip().upper()
     meta = ticker_meta(ticker)
     sec_etf = SECTOR_ETFS.get(meta["sector"])
@@ -128,65 +124,6 @@ def ai_payload_from_context(ctx: dict) -> dict:
     return {k: v for k, v in ctx.items() if k != "df"}
 
 
-def build_trade_plan(ticker: str, setup: str, cfg: TradingSettings, overrides: dict | None = None,
-                     ctx: dict | None = None, regime_label: str | None = None) -> dict:
-    ctx = ctx or stock_context(ticker, cfg)
-    if "error" in ctx:
-        return {"error": ctx["error"]}
-    lv = suggest_levels(ctx["daily"], setup)
-    if "error" in lv:
-        return {"error": lv["error"]}
-    o = overrides or {}
-    entry = float(o.get("entry") if o.get("entry") is not None else lv["entry"])
-    stop = float(o.get("stop") if o.get("stop") is not None else lv["stop"])
-    t1 = float(o.get("target1")) if o.get("target1") is not None else (float(lv["target1"]) if lv.get("target1") is not None else None)
-    t2 = float(o.get("target2")) if o.get("target2") is not None else (float(lv["target2"]) if lv.get("target2") is not None else None)
-    state = account_state(cfg, latest_prices([p.ticker for p in account_state(cfg)["open_positions"]])[0])
-    equity = sizing_equity(state)
-    extra = context_checks(ctx["daily"], ctx.get("days_to_earnings"), regime_label)
-    ev = evaluate_trade(ctx["ticker"], entry, stop, t1, t2, equity, max(0.0, state["cash"]),
-                        state["open_positions"], cfg, extra)
-    return {"ticker": ctx["ticker"], "setup": setup, "levels": lv, "entry": entry, "stop": stop, "target1": t1,
-            "target2": t2, "overridden": bool(o), "evaluation": ev, "equity": equity, "account": state,
-            "context": ctx, "data_as_of": ctx["daily"].get("as_of")}
-
-
-def save_trade_plan(plan: dict, thesis: str, catalyst: str, risks: str, holding_period: str,
-                    ai_review: str = "") -> int:
-    ev = plan["evaluation"]
-    with session_scope() as s:
-        p = TradePlan(ticker=plan["ticker"], setup=plan["setup"], thesis=thesis,
-                      entry_trigger=plan["levels"]["entry_trigger"], entry=plan["entry"], stop=plan["stop"],
-                      target1=plan["target1"], target2=plan["target2"], shares=ev.size.shares,
-                      risk_usd=ev.planned_loss_net, reward_risk=ev.rr_t1, holding_period=holding_period,
-                      catalyst=catalyst, risks=risks, verdict=ev.verdict,
-                      checks_json=json.dumps([asdict(c) for c in ev.checks]), data_as_of=str(plan["data_as_of"]),
-                      ai_review=ai_review)
-        s.add(p)
-        s.flush()
-        return p.id
-
-
-def list_plans(status: str | None = "ACTIVE") -> pd.DataFrame:
-    with session_scope() as s:
-        q = select(TradePlan)
-        if status:
-            q = q.where(TradePlan.status == status)
-        rows = s.scalars(q.order_by(TradePlan.created_at.desc())).all()
-        return pd.DataFrame([{"id": r.id, "created": r.created_at, "ticker": r.ticker, "setup": r.setup,
-                              "verdict": r.verdict, "entry": r.entry, "stop": r.stop, "target1": r.target1,
-                              "target2": r.target2, "shares": r.shares, "risk_usd": r.risk_usd,
-                              "R:R": r.reward_risk, "data_as_of": r.data_as_of, "thesis": r.thesis,
-                              "entry_trigger": r.entry_trigger, "status": r.status} for r in rows])
-
-
-def set_plan_status(plan_id: int, status: str) -> None:
-    with session_scope() as s:
-        p = s.get(TradePlan, plan_id)
-        if p:
-            p.status = status
-
-
 def upcoming_events(days: int = 21) -> pd.DataFrame:
     today = date.today()
     with session_scope() as s:
@@ -198,7 +135,7 @@ def upcoming_events(days: int = 21) -> pd.DataFrame:
                              for r in rows])
 
 
-def market_context(cfg: TradingSettings, force: bool = False, include_macro: bool = True) -> dict:
+def market_context(cfg: AppSettings, force: bool = False, include_macro: bool = True) -> dict:
     idx, idx_res = index_overview(force)
     sectors, sec_res = sector_performance(force)
     uni = load_universe(cfg.extra_tickers)

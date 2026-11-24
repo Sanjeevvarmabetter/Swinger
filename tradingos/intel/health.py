@@ -108,8 +108,14 @@ def run_checks(force: bool = False) -> list[dict]:
                             "User-Agent configured" if cfg.sec_user_agent else
                             "Set SEC_USER_AGENT in .env (SEC fair-access policy requires contact info)",
                             "Company filings in ticker news"))
-        checks.append(Check("X (Twitter) API", "Posts / search", "NOT CONFIGURED", "Stage 3 — not built yet",
-                            "X Intelligence Centre"))
+        checks.append(Check("Groq", "Chat completions", "OK" if cfg.groq_configured else "NOT CONFIGURED",
+                            f"model {cfg.groq_model} (use Settings → Test connection for a live call)"
+                            if cfg.groq_configured else "GROQ_API_KEY not set", "AI Research Chat & briefings"))
+        from tradingos.intel import xintel
+        checks.append(Check("X (Twitter) API", "Recent search", "OK" if xintel.configured() else "NOT CONFIGURED",
+                            f"bearer token set · budget {xintel.daily_limit()} requests/day" if xintel.configured()
+                            else "Set X_BEARER_TOKEN in .env (paid X API plan or credits required)",
+                            "X Intelligence"))
         return [asdict(c) for c in checks]
     return cache.cached("health|checks", 3600, go, force=force)
 

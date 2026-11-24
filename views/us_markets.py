@@ -38,9 +38,9 @@ with t_sec:
     thm = markets.group(df, "US themes")
     c1, c2 = st.columns(2)
     c1.plotly_chart(iu.heatmap(sec.sort_values("1W %", ascending=False), title="S&P sector ETFs — % change"),
-                    width="stretch")
+                    width="stretch", config=iu.STATIC_CHART)
     c2.plotly_chart(iu.heatmap(thm.sort_values("1W %", ascending=False), title="Themes (ETF proxies) — % change"),
-                    width="stretch")
+                    width="stretch", config=iu.STATIC_CHART)
     st.markdown("**Relative strength vs S&P 500 (3M, pp)**")
     if len(mc["sectors"]):
         st.plotly_chart(charts.bar_chart(mc["sectors"], "Name", "RS vs SPY 3M (pp)", "3-month relative strength vs SPY"),
@@ -105,12 +105,11 @@ with t_cal:
         else:
             ui.empty_state(ipo.error or "No IPOs listed in the window by Finnhub.")
     st.markdown("**Earnings — next 7 days**")
-    only_known = st.toggle("Only watchlist, scan universe and Mag 7", value=True)
+    only_known = st.toggle("Only tracked large caps (breadth universe and Mag 7)", value=True)
     symbols = None
     if only_known:
-        from tradingos import watchlist
         from tradingos.data.providers import load_universe
-        symbols = set(load_universe()["ticker"]) | set(MAG7.values()) | {w.ticker for w in watchlist.items()}
+        symbols = set(load_universe()["ticker"]) | set(MAG7.values())
     earn = calendars.earnings_calendar(7, symbols)
     if earn.ok and len(earn.data):
         st.dataframe(earn.data, hide_index=True, width="stretch",
@@ -134,6 +133,7 @@ with t_ai:
                "news": iu.ranked_news(2, "US").head(30)[["tier", "headline", "source", "published_utc", "url", "info_type", "topics"]],
                "not_available": [u[0] for u in UNAVAILABLE]}
     ui.gemini_panel("us_analyst", "Explain the US market environment",
-                    lambda: gemini.intel_analysis("us_market_analyst", payload, "US"))
+                    lambda: gemini.intel_analysis("us_market_analyst", payload, "US"),
+                    payload_for_links=payload)
 
 ui.disclaimer()
