@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: ai-trading-os
+    runtime: docker
+    plan: starter
+    region: oregon
+    healthCheckPath: /_stcore/health
+    disk:
+      name: tradingos-data
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash
+      - key: FRED_API_KEY
+        sync: false
+      - key: FINNHUB_API_KEY
+        sync: false
+      - key: FMP_API_KEY
+        sync: false
+      - key: SEC_USER_AGENT
+        value: AI-Trading-OS personal research trader@example.com
+      - key: TRADINGOS_DATA_DIR
+        value: /app/data
