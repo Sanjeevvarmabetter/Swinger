@@ -1,0 +1,292 @@
+{
+  "_comment": "Edit freely. 'official': true marks primary sources (labelled Confirmed). 'region' tags every item from the feed (blank = keyword-detected). Feeds verified reachable and current on 2026-11-24 (geopolitics/central-bank feeds added in Stage 2); failing or stale feeds are skipped and reported in the UI. WSJ (frozen since Jan 2025) and Moneycontrol (frozen since 2024) were removed.",
+  "feeds": [
+    {
+      "name": "CNBC Top News",
+      "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+      "category": "markets",
+      "official": false,
+      "region": "US"
+    },
+    {
+      "name": "CNBC Markets",
+      "url": "https://www.cnbc.com/id/15839069/device/rss/rss.html",
+      "category": "markets",
+      "official": false,
+      "region": "US"
+    },
+    {
+      "name": "CNBC Economy",
+      "url": "https://www.cnbc.com/id/20910258/device/rss/rss.html",
+      "category": "macro",
+      "official": false,
+      "region": "US"
+    },
+    {
+      "name": "CNBC Technology",
+      "url": "https://www.cnbc.com/id/19854910/device/rss/rss.html",
+      "category": "technology",
+      "official": false,
+      "region": ""
+    },
+    {
+      "name": "CNBC Earnings",
+      "url": "https://www.cnbc.com/id/15839135/device/rss/rss.html",
+      "category": "earnings",
+      "official": false,
+      "region": "US"
+    },
+    {
+      "name": "CNBC World",
+      "url": "https://www.cnbc.com/id/100727362/device/rss/rss.html",
+      "category": "markets",
+      "official": false,
+      "region": ""
+    },
+    {
+      "name": "CNBC Asia",
+      "url": "https://www.cnbc.com/id/19832390/device/rss/rss.html",
+      "category": "markets",
+      "official": false,
+      "region": "Asia"
+    },
+    {
+      "name": "Financial Times Markets",
+      "url": "https://www.ft.com/markets?format=rss",
+      "category": "markets",
+      "official": false,
+      "region": ""
+    },
+    {
+      "name": "Financial Times World",
+      "url": "https://www.ft.com/world?format=rss",
+      "category": "geopolitics",
+      "official": false,
+      "region": ""
+    },
+    {
+      "name": "BBC Business",
+      "url": "https://feeds.bbci.co.uk/news/business/rss.xml",
+      "category": "markets",
+      "official": false,
+      "region": ""
+    },
+    {
+      "name": "BBC World",
+      "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+      "category": "geopolitics",
+      "official": false,
+      "region": ""
+    },
+    {
+      "name": "Al Jazeera",
+      "url": "https://www.aljazeera.com/xml/rss/all.xml",
+      "category": "geopolitics",
+      "official": false,
+      "region": ""
+    },
+    {
+      "name": "DW Business",
+      "url": "https://rss.dw.com/rdf/rss-en-bus",
+      "category": "markets",
+      "official": false,
+      "region": ""
+    },
+    {
+      "name": "OilPrice.com",
+      "url": "https://oilprice.com/rss/main",
+      "category": "commodities",
+      "official": false,
+      "region": ""
+    },
+    {
+      "name": "Mining.com",
+      "url": "https://www.mining.com/feed/",
+      "category": "commodities",
+      "official": false,
+      "region": ""
+    },
+    {
+      "name": "Economic Times Markets",
+      "url": "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",
+      "category": "markets",
+      "official": false,
+      "region": "India"
+    },
+    {
+      "name": "Economic Times Economy",
+      "url": "https://economictimes.indiatimes.com/news/economy/rssfeeds/1373380680.cms",
+      "category": "macro",
+      "official": false,
+      "region": "India"
+    },
+    {
+      "name": "LiveMint Markets",
+      "url": "https://www.livemint.com/rss/markets",
+      "category": "markets",
+      "official": false,
+      "region": "India"
+    },
+    {
+      "name": "LiveMint Economy",
+      "url": "https://www.livemint.com/rss/economy",
+      "category": "macro",
+      "official": false,
+      "region": "India"
+    },
+    {
+      "name": "Business Standard Markets",
+      "url": "https://www.business-standard.com/rss/markets-106.rss",
+      "category": "markets",
+      "official": false,
+      "region": "India"
+    },
+    {
+      "name": "Hindu BusinessLine Markets",
+      "url": "https://www.thehindubusinessline.com/markets/feeder/default.rss",
+      "category": "markets",
+      "official": false,
+      "region": "India"
+    },
+    {
+      "name": "RBI — Press Releases",
+      "url": "https://www.rbi.org.in/pressreleases_rss.xml",
+      "category": "macro",
+      "official": true,
+      "region": "India"
+    },
+    {
+      "name": "RBI — Notifications",
+      "url": "https://www.rbi.org.in/notifications_rss.xml",
+      "category": "regulation",
+      "official": true,
+      "region": "India"
+    },
+    {
+      "name": "Federal Reserve — Monetary Policy",
+      "url": "https://www.federalreserve.gov/feeds/press_monetary.xml",
+      "category": "macro",
+      "official": true,
+      "region": "US"
+    },
+    {
+      "name": "Federal Reserve — All Press",
+      "url": "https://www.federalreserve.gov/feeds/press_all.xml",
+      "category": "macro",
+      "official": true,
+      "region": "US"
+    },
+    {
+      "name": "BEA (GDP, PCE, spending)",
+      "url": "https://apps.bea.gov/rss/rss.xml",
+      "category": "macro",
+      "official": true,
+      "region": "US"
+    },
+    {
+      "name": "BLS (CPI, jobs)",
+      "url": "https://www.bls.gov/feed/bls_latest.rss",
+      "category": "macro",
+      "official": true,
+      "region": "US"
+    },
+    {
+      "name": "ECB — Press",
+      "url": "https://www.ecb.europa.eu/rss/press.html",
+      "category": "macro",
+      "official": true,
+      "region": "Europe"
+    },
+    {
+      "name": "Bank of England — News",
+      "url": "https://www.bankofengland.co.uk/rss/news",
+      "category": "macro",
+      "official": true,
+      "region": "Europe"
+    },
+    {
+      "name": "UN News",
+      "url": "https://news.un.org/feed/subscribe/en/news/all/rss.xml",
+      "category": "geopolitics",
+      "official": false,
+      "region": ""
+    },
+    {
+      "name": "EU Council — Press",
+      "url": "https://www.consilium.europa.eu/en/rss/pressreleases.ashx",
+      "category": "geopolitics",
+      "official": true,
+      "region": "Europe"
+    },
+    {
+      "name": "Defense News",
+      "url": "https://www.defensenews.com/arc/outboundfeeds/rss/?outputType=xml",
+      "category": "geopolitics",
+      "official": false,
+      "region": ""
+    },
+    {
+      "name": "The Diplomat",
+      "url": "https://thediplomat.com/feed/",
+      "category": "geopolitics",
+      "official": false,
+      "region": "Asia"
+    },
+    {
+      "name": "Foreign Policy",
+      "url": "https://foreignpolicy.com/feed/",
+      "category": "geopolitics",
+      "official": false,
+      "region": ""
+    },
+    {
+      "name": "France 24",
+      "url": "https://www.france24.com/en/rss",
+      "category": "geopolitics",
+      "official": false,
+      "region": ""
+    },
+    {
+      "name": "NPR World",
+      "url": "https://feeds.npr.org/1004/rss.xml",
+      "category": "geopolitics",
+      "official": false,
+      "region": ""
+    },
+    {
+      "name": "SCMP China",
+      "url": "https://www.scmp.com/rss/4/feed",
+      "category": "markets",
+      "official": false,
+      "region": "Asia"
+    },
+    {
+      "name": "The Hindu — International",
+      "url": "https://www.thehindu.com/news/international/feeder/default.rss",
+      "category": "geopolitics",
+      "official": false,
+      "region": ""
+    },
+    {
+      "name": "Times of India — World",
+      "url": "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms",
+      "category": "geopolitics",
+      "official": false,
+      "region": ""
+    },
+    {
+      "name": "Federal Reserve — Speeches",
+      "url": "https://www.federalreserve.gov/feeds/speeches.xml",
+      "category": "macro",
+      "official": true,
+      "region": "US"
+    },
+    {
+      "name": "Bank of Japan — What's New",
+      "url": "https://www.boj.or.jp/en/rss/whatsnew.xml",
+      "category": "macro",
+      "official": true,
+      "region": "Asia"
+    }
+  ]
+}

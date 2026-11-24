@@ -1,0 +1,210 @@
+ticker,name,sector,themes,type
+SPY,SPDR S&P 500 ETF,Index,,ETF
+QQQ,Invesco QQQ,Index,,ETF
+IWM,iShares Russell 2000,Index,,ETF
+DIA,SPDR Dow Jones,Index,,ETF
+XLK,Technology Select Sector,Technology,sector-etf,ETF
+XLC,Communication Services Select Sector,Communication Services,sector-etf,ETF
+XLY,Consumer Discretionary Select Sector,Consumer Discretionary,sector-etf,ETF
+XLP,Consumer Staples Select Sector,Consumer Staples,sector-etf,ETF
+XLE,Energy Select Sector,Energy,sector-etf,ETF
+XLF,Financial Select Sector,Financials,sector-etf,ETF
+XLV,Health Care Select Sector,Health Care,sector-etf,ETF
+XLI,Industrial Select Sector,Industrials,sector-etf,ETF
+XLB,Materials Select Sector,Materials,sector-etf,ETF
+XLRE,Real Estate Select Sector,Real Estate,sector-etf,ETF
+XLU,Utilities Select Sector,Utilities,sector-etf,ETF
+SMH,VanEck Semiconductor ETF,Technology,semis;ai,ETF
+SOXX,iShares Semiconductor ETF,Technology,semis;ai,ETF
+IGV,iShares Expanded Tech-Software,Technology,software,ETF
+XBI,SPDR S&P Biotech,Health Care,biotech,ETF
+ITA,iShares US Aerospace & Defense,Industrials,defense,ETF
+URA,Global X Uranium,Energy,nuclear,ETF
+TAN,Invesco Solar,Utilities,clean-energy,ETF
+GLD,SPDR Gold Shares,Commodities,gold,ETF
+SLV,iShares Silver Trust,Commodities,silver,ETF
+TLT,iShares 20+ Year Treasury,Bonds,rates,ETF
+ARKK,ARK Innovation,Technology,innovation,ETF
+KRE,SPDR Regional Banking,Financials,banks,ETF
+XHB,SPDR Homebuilders,Consumer Discretionary,housing,ETF
+COPX,Global X Copper Miners,Materials,copper,ETF
+AAPL,Apple,Technology,ai,Stock
+MSFT,Microsoft,Technology,ai;cloud;software,Stock
+NVDA,NVIDIA,Technology,ai;semis,Stock
+AVGO,Broadcom,Technology,ai;semis,Stock
+AMD,Advanced Micro Devices,Technology,ai;semis,Stock
+INTC,Intel,Technology,semis,Stock
+QCOM,Qualcomm,Technology,semis,Stock
+TXN,Texas Instruments,Technology,semis,Stock
+MU,Micron Technology,Technology,ai;semis;memory,Stock
+AMAT,Applied Materials,Technology,semis;semi-equipment,Stock
+LRCX,Lam Research,Technology,semis;semi-equipment,Stock
+KLAC,KLA,Technology,semis;semi-equipment,Stock
+ASML,ASML Holding,Technology,semis;semi-equipment,Stock
+TSM,Taiwan Semiconductor,Technology,ai;semis,Stock
+ARM,Arm Holdings,Technology,ai;semis,Stock
+MRVL,Marvell Technology,Technology,ai;semis,Stock
+ADI,Analog Devices,Technology,semis,Stock
+NXPI,NXP Semiconductors,Technology,semis,Stock
+ON,ON Semiconductor,Technology,semis;ev,Stock
+MPWR,Monolithic Power Systems,Technology,ai;semis,Stock
+SMCI,Super Micro Computer,Technology,ai;hardware,Stock
+DELL,Dell Technologies,Technology,ai;hardware,Stock
+HPE,Hewlett Packard Enterprise,Technology,ai;hardware,Stock
+ANET,Arista Networks,Technology,ai;networking,Stock
+CSCO,Cisco Systems,Technology,networking,Stock
+VRT,Vertiv,Industrials,ai;datacenter,Stock
+ORCL,Oracle,Technology,ai;cloud;software,Stock
+CRM,Salesforce,Technology,ai;software,Stock
+ADBE,Adobe,Technology,ai;software,Stock
+NOW,ServiceNow,Technology,ai;software,Stock
+INTU,Intuit,Technology,software,Stock
+PLTR,Palantir,Technology,ai;software,Stock
+SNOW,Snowflake,Technology,ai;cloud;software,Stock
+MDB,MongoDB,Technology,cloud;software,Stock
+DDOG,Datadog,Technology,cloud;software,Stock
+CRWD,CrowdStrike,Technology,cyber;software,Stock
+PANW,Palo Alto Networks,Technology,cyber;software,Stock
+ZS,Zscaler,Technology,cyber;software,Stock
+FTNT,Fortinet,Technology,cyber;software,Stock
+NET,Cloudflare,Technology,cyber;cloud,Stock
+OKTA,Okta,Technology,cyber;software,Stock
+S,SentinelOne,Technology,cyber;software,Stock
+SHOP,Shopify,Technology,ecommerce;software,Stock
+WDAY,Workday,Technology,software,Stock
+TEAM,Atlassian,Technology,software,Stock
+APP,AppLovin,Technology,ai;software,Stock
+IBM,IBM,Technology,ai;software,Stock
+ACN,Accenture,Technology,services,Stock
+ANSS,Ansys,Technology,software,Stock
+CDNS,Cadence Design Systems,Technology,ai;semis;software,Stock
+SNPS,Synopsys,Technology,ai;semis;software,Stock
+WDC,Western Digital,Technology,ai;memory,Stock
+STX,Seagate Technology,Technology,ai;memory,Stock
+PSTG,Pure Storage,Technology,ai;hardware,Stock
+COHR,Coherent,Technology,ai;optical,Stock
+CIEN,Ciena,Technology,ai;networking,Stock
+IONQ,IonQ,Technology,quantum,Stock
+GOOGL,Alphabet,Communication Services,ai;cloud,Stock
+META,Meta Platforms,Communication Services,ai,Stock
+NFLX,Netflix,Communication Services,streaming,Stock
+DIS,Walt Disney,Communication Services,media,Stock
+CMCSA,Comcast,Communication Services,media,Stock
+T,AT&T,Communication Services,telecom,Stock
+VZ,Verizon,Communication Services,telecom,Stock
+TMUS,T-Mobile US,Communication Services,telecom,Stock
+SPOT,Spotify,Communication Services,streaming,Stock
+RDDT,Reddit,Communication Services,social,Stock
+AMZN,Amazon,Consumer Discretionary,ai;cloud;ecommerce,Stock
+TSLA,Tesla,Consumer Discretionary,ev;ai,Stock
+HD,Home Depot,Consumer Discretionary,housing,Stock
+LOW,Lowe's,Consumer Discretionary,housing,Stock
+MCD,McDonald's,Consumer Discretionary,restaurants,Stock
+SBUX,Starbucks,Consumer Discretionary,restaurants,Stock
+CMG,Chipotle,Consumer Discretionary,restaurants,Stock
+NKE,Nike,Consumer Discretionary,apparel,Stock
+LULU,Lululemon,Consumer Discretionary,apparel,Stock
+BKNG,Booking Holdings,Consumer Discretionary,travel,Stock
+ABNB,Airbnb,Consumer Discretionary,travel,Stock
+UBER,Uber,Industrials,mobility,Stock
+DASH,DoorDash,Consumer Discretionary,ecommerce,Stock
+MELI,MercadoLibre,Consumer Discretionary,ecommerce,Stock
+TJX,TJX Companies,Consumer Discretionary,retail,Stock
+ROST,Ross Stores,Consumer Discretionary,retail,Stock
+GM,General Motors,Consumer Discretionary,autos,Stock
+F,Ford Motor,Consumer Discretionary,autos,Stock
+RIVN,Rivian,Consumer Discretionary,ev,Stock
+DHI,D.R. Horton,Consumer Discretionary,housing,Stock
+LEN,Lennar,Consumer Discretionary,housing,Stock
+RCL,Royal Caribbean,Consumer Discretionary,travel,Stock
+WMT,Walmart,Consumer Staples,retail,Stock
+COST,Costco,Consumer Staples,retail,Stock
+PG,Procter & Gamble,Consumer Staples,staples,Stock
+KO,Coca-Cola,Consumer Staples,staples,Stock
+PEP,PepsiCo,Consumer Staples,staples,Stock
+PM,Philip Morris,Consumer Staples,staples,Stock
+MO,Altria,Consumer Staples,staples,Stock
+CL,Colgate-Palmolive,Consumer Staples,staples,Stock
+MDLZ,Mondelez,Consumer Staples,staples,Stock
+TGT,Target,Consumer Staples,retail,Stock
+ELF,e.l.f. Beauty,Consumer Staples,beauty,Stock
+XOM,Exxon Mobil,Energy,oil,Stock
+CVX,Chevron,Energy,oil,Stock
+COP,ConocoPhillips,Energy,oil,Stock
+SLB,SLB,Energy,oil-services,Stock
+OXY,Occidental Petroleum,Energy,oil,Stock
+EOG,EOG Resources,Energy,oil,Stock
+CCJ,Cameco,Energy,nuclear,Stock
+JPM,JPMorgan Chase,Financials,banks,Stock
+BAC,Bank of America,Financials,banks,Stock
+WFC,Wells Fargo,Financials,banks,Stock
+C,Citigroup,Financials,banks,Stock
+GS,Goldman Sachs,Financials,banks;capital-markets,Stock
+MS,Morgan Stanley,Financials,banks;capital-markets,Stock
+SCHW,Charles Schwab,Financials,brokers,Stock
+BLK,BlackRock,Financials,asset-managers,Stock
+V,Visa,Financials,payments,Stock
+MA,Mastercard,Financials,payments,Stock
+AXP,American Express,Financials,payments,Stock
+PYPL,PayPal,Financials,payments,Stock
+COIN,Coinbase,Financials,crypto,Stock
+HOOD,Robinhood,Financials,brokers;crypto,Stock
+SOFI,SoFi Technologies,Financials,fintech,Stock
+BRK-B,Berkshire Hathaway,Financials,conglomerate,Stock
+SPGI,S&P Global,Financials,data,Stock
+KKR,KKR,Financials,asset-managers,Stock
+BX,Blackstone,Financials,asset-managers,Stock
+UNH,UnitedHealth,Health Care,managed-care,Stock
+LLY,Eli Lilly,Health Care,pharma;glp1,Stock
+NVO,Novo Nordisk,Health Care,pharma;glp1,Stock
+JNJ,Johnson & Johnson,Health Care,pharma,Stock
+ABBV,AbbVie,Health Care,pharma,Stock
+MRK,Merck,Health Care,pharma,Stock
+PFE,Pfizer,Health Care,pharma,Stock
+TMO,Thermo Fisher,Health Care,tools,Stock
+ABT,Abbott Laboratories,Health Care,medtech,Stock
+ISRG,Intuitive Surgical,Health Care,medtech;robotics,Stock
+DHR,Danaher,Health Care,tools,Stock
+AMGN,Amgen,Health Care,biotech,Stock
+GILD,Gilead Sciences,Health Care,biotech,Stock
+VRTX,Vertex Pharmaceuticals,Health Care,biotech,Stock
+REGN,Regeneron,Health Care,biotech,Stock
+BSX,Boston Scientific,Health Care,medtech,Stock
+HIMS,Hims & Hers,Health Care,telehealth,Stock
+CAT,Caterpillar,Industrials,machinery,Stock
+DE,Deere,Industrials,machinery,Stock
+GE,GE Aerospace,Industrials,aerospace,Stock
+GEV,GE Vernova,Industrials,ai;power;datacenter,Stock
+HON,Honeywell,Industrials,conglomerate,Stock
+BA,Boeing,Industrials,aerospace,Stock
+RTX,RTX,Industrials,defense,Stock
+LMT,Lockheed Martin,Industrials,defense,Stock
+NOC,Northrop Grumman,Industrials,defense,Stock
+GD,General Dynamics,Industrials,defense,Stock
+UNP,Union Pacific,Industrials,rail,Stock
+UPS,UPS,Industrials,logistics,Stock
+ETN,Eaton,Industrials,ai;power;datacenter,Stock
+PWR,Quanta Services,Industrials,ai;power;datacenter,Stock
+AXON,Axon Enterprise,Industrials,defense;software,Stock
+RKLB,Rocket Lab,Industrials,space,Stock
+JCI,Johnson Controls,Industrials,buildings,Stock
+LIN,Linde,Materials,industrial-gases,Stock
+FCX,Freeport-McMoRan,Materials,copper,Stock
+NEM,Newmont,Materials,gold,Stock
+SHW,Sherwin-Williams,Materials,chemicals,Stock
+NUE,Nucor,Materials,steel,Stock
+MP,MP Materials,Materials,rare-earths,Stock
+ALB,Albemarle,Materials,lithium;ev,Stock
+NEE,NextEra Energy,Utilities,power;clean-energy,Stock
+DUK,Duke Energy,Utilities,power,Stock
+SO,Southern Company,Utilities,power,Stock
+CEG,Constellation Energy,Utilities,ai;power;nuclear,Stock
+VST,Vistra,Utilities,ai;power;nuclear,Stock
+TLN,Talen Energy,Utilities,ai;power;nuclear,Stock
+OKLO,Oklo,Utilities,nuclear,Stock
+SMR,NuScale Power,Industrials,nuclear,Stock
+PLD,Prologis,Real Estate,logistics,Stock
+AMT,American Tower,Real Estate,towers,Stock
+EQIX,Equinix,Real Estate,ai;datacenter,Stock
+DLR,Digital Realty,Real Estate,ai;datacenter,Stock
+O,Realty Income,Real Estate,net-lease,Stock
