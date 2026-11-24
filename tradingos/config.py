@@ -17,7 +17,17 @@ load_dotenv(PROJECT_ROOT / ".env", override=False)
 
 def _env(name: str, default: str = "") -> str:
     val = os.getenv(name)
-    return val.strip() if val and val.strip() else default
+    if val and val.strip():
+        return val.strip()
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets") and name in st.secrets:
+            s_val = str(st.secrets[name])
+            if s_val.strip():
+                return s_val.strip()
+    except Exception:
+        pass
+    return default
 
 
 @dataclass(frozen=True)
