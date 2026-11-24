@@ -1,9 +1,16 @@
-"""GLOBAL MARKET INTELLIGENCE — powered by AI Trading OS.
+"""AI TRADING OS — Institutional Swing-Trading Research Workstation.
 
 Run:  streamlit run app.py
 """
 import logging
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
+
+# Ensure repository root is on sys.path for Streamlit Cloud deployment
+ROOT_DIR = Path(__file__).resolve().parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 import streamlit as st
 
