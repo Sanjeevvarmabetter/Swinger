@@ -107,7 +107,7 @@ with tab_report:
     st.download_button("Download brief (.md)", report, file_name="daily_brief.md")
     ui.gemini_panel("market_analysis", "Generate AI market intelligence report",
                     lambda: gemini.market_analysis(briefing.ai_payload(mc)))
-    if load_config().ai_configured:
+    if getattr(load_config(), "ai_configured", False):
         past = gemini.recent_reports("market_analysis", limit=5)
         if past:
             with st.expander("Previous AI market reports"):

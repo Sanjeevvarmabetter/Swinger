@@ -12,6 +12,11 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+# Reload tradingos modules on hot-reload to prevent stale classes in long-running processes
+for mod in list(sys.modules):
+    if mod == "tradingos" or mod.startswith("tradingos."):
+        del sys.modules[mod]
+
 import streamlit as st
 
 from tradingos.data.base import NY

@@ -19,17 +19,19 @@ app = load_config()
 st.markdown("### External API Integrations & Health")
 c0, c1, c2, c3, c4 = st.columns(5)
 with c0:
+    has_groq = getattr(app, "groq_configured", False)
+    groq_m = getattr(app, "groq_model", "openai/gpt-oss-120b")
     st.markdown(
         f'<div class="term-card">'
         f'  <div class="term-card-header">'
         f'    <span class="term-label">Groq AI (LPU)</span>'
-        f'    {ui.badge("ACTIVE" if app.groq_configured else "DISABLED", "green" if app.groq_configured else "neutral")}'
+        f'    {ui.badge("ACTIVE" if has_groq else "DISABLED", "green" if has_groq else "neutral")}'
         f'  </div>'
-        f'  <div style="font-size:0.75rem;color:#94A3B8;margin-bottom:8px;">Model: <code>{app.groq_model}</code><br/>Ultra-fast reasoning</div>'
+        f'  <div style="font-size:0.75rem;color:#94A3B8;margin-bottom:8px;">Model: <code>{groq_m}</code><br/>Ultra-fast reasoning</div>'
         f'</div>',
         unsafe_allow_html=True,
     )
-    if st.button("Test Groq", disabled=not app.groq_configured, width="stretch"):
+    if st.button("Test Groq", disabled=not has_groq, width="stretch"):
         ok, msg = test_groq_connection()
         (st.success if ok else st.error)(msg)
 with c1:

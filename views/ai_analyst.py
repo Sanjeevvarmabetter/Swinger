@@ -22,7 +22,8 @@ st.caption(
     "AI models interpret the structured evidence."
 )
 
-if not cfg_app.ai_configured:
+ai_ready = getattr(cfg_app, "ai_configured", getattr(cfg_app, "gemini_configured", False))
+if not ai_ready:
     st.warning("AI is not configured. Add GROQ_API_KEY (recommended, free) or GEMINI_API_KEY to your .env file or Streamlit secrets.")
 
 cfg = ui.settings()
@@ -142,7 +143,7 @@ with tab_chat:
             st.markdown(msg["text"])
 
     prompt = st.chat_input("Ask a research question, e.g. 'Compare recent revenue momentum vs price trend'",
-                           disabled=not cfg_app.ai_configured)
+                           disabled=not getattr(cfg_app, "ai_configured", getattr(cfg_app, "gemini_configured", False)))
     if prompt:
         hist.append({"role": "user", "text": prompt})
         with st.chat_message("user"):

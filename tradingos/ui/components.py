@@ -601,17 +601,21 @@ def gemini_panel(key: str, label: str, fn: Callable[[], str], help_text: str = "
     cfg = load_config()
     state_key = f"ai_{key}"
     cols = st.columns([1.2, 3])
-    active_model = f"Groq ({cfg.groq_model})" if cfg.groq_configured else f"Gemini ({cfg.gemini_model})"
+    ai_ready = getattr(cfg, "ai_configured", getattr(cfg, "gemini_configured", False))
+    has_groq = getattr(cfg, "groq_configured", False)
+    groq_m = getattr(cfg, "groq_model", "openai/gpt-oss-120b")
+    gemini_m = getattr(cfg, "gemini_model", "gemini-3.8-flash")
+    active_model = f"Groq ({groq_m})" if has_groq else f"Gemini ({gemini_m})"
     with cols[0]:
         clicked = st.button(
             f"✨ {label}",
             key=f"btn_{key}",
-            disabled=not cfg.ai_configured,
+            disabled=not ai_ready,
             help=help_text or f"Sends Python-computed data to {active_model} for interpretation.",
-            type="primary" if cfg.ai_configured else "secondary",
+            type="primary" if ai_ready else "secondary",
         )
     with cols[1]:
-        if not cfg.ai_configured:
+        if not ai_ready:
             st.caption("AI not configured — add GROQ_API_KEY (free) or GEMINI_API_KEY to .env or Streamlit secrets. "
                        "All deterministic analysis still works.")
         else:
