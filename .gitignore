@@ -5,9 +5,9 @@
 .streamlit/secrets.toml
 
 # Local data (journal, portfolio, caches, backups) — personal financial data
-data/
-backups/
-reports/
+/data/
+/backups/
+/reports/
 *.db
 *.sqlite
 *.sqlite3
