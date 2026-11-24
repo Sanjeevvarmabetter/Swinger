@@ -4,7 +4,7 @@
 !.env.example
 .streamlit/secrets.toml
 
-# Local data (journal, portfolio, caches, backups) — personal financial data
+# Local data (news archive, briefings, chat history, caches, backups, QA screenshots)
 /data/
 /backups/
 /reports/

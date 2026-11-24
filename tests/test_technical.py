@@ -1,6 +1,6 @@
 import numpy as np
 
-from tradingos.analysis.technical import analyze, classify_trend, explain, find_pivots, suggest_levels, support_resistance
+from tradingos.analysis.technical import analyze, classify_trend, find_pivots, support_resistance
 from tests.conftest import make_ohlcv
 
 
@@ -38,16 +38,3 @@ def test_classify_trend():
     assert classify_trend(110, 105, 100, 90, 1.0) == "Strong uptrend"
     assert classify_trend(80, 85, 90, 100, -1.0) == "Downtrend"
     assert "insufficient" in classify_trend(10, None, None, None, None).lower()
-
-
-def test_suggest_levels_long_geometry(uptrend):
-    s = analyze(uptrend, None)
-    for setup in ("Breakout", "Pullback", "Momentum"):
-        lv = suggest_levels(s, setup)
-        assert lv["stop"] < lv["entry"] < lv["target1"] <= lv["target2"]
-        assert lv["stop_basis"] and lv["target1_basis"]
-
-
-def test_explain_has_nine_points(uptrend):
-    e = explain(analyze(uptrend, None))
-    assert len(e) == 9

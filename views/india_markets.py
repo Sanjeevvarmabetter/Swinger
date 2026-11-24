@@ -45,7 +45,7 @@ with t_sec:
     sec = markets.group(df, "India sectors").drop_duplicates("Symbol")
     c1, c2 = st.columns([1.2, 1])
     c1.plotly_chart(iu.heatmap(sec.sort_values("1W %", ascending=False), title="NSE sector indices — % change"),
-                    width="stretch")
+                    width="stretch", config=iu.STATIC_CHART)
     with c2:
         ok = sec.dropna(subset=["1M %"]).sort_values("1M %", ascending=False)
         if len(ok):
@@ -96,6 +96,7 @@ with t_ai:
                "not_available": ["FII/DII daily flows", "NSE/BSE corporate announcements", "bulk/block deals",
                                  "MCX prices", "Indian macro calendar (RBI MPC dates must be added manually)"]}
     ui.gemini_panel("india_analyst", "Explain the Indian market environment",
-                    lambda: gemini.intel_analysis("india_market_analyst", payload, "India"))
+                    lambda: gemini.intel_analysis("india_market_analyst", payload, "India"),
+                    payload_for_links=payload)
 
 ui.disclaimer()

@@ -1,0 +1,10 @@
+{
+  "_comment": "X Intelligence watch lists. Queries use X API v2 recent-search syntax. Each refresh costs one request per list (pay-per-use pricing) — keep the list short. Edit freely.",
+  "lists": [
+    {"key": "central_banks", "title": "Central banks & official", "query": "(from:federalreserve OR from:RBI OR from:ecb OR from:bankofengland OR from:USTreasury OR from:IMFNews) -is:retweet"},
+    {"key": "markets_desk", "title": "Markets news desks", "query": "(from:Reuters OR from:business OR from:WSJmarkets OR from:FT OR from:CNBC OR from:ReutersBiz) (stocks OR markets OR Fed OR yields OR earnings) -is:retweet"},
+    {"key": "india", "title": "Indian markets", "query": "(Nifty OR Sensex OR RBI OR SEBI) (from:NSEIndia OR from:BSEIndia OR from:RBI OR from:ETNOWlive OR from:CNBCTV18Live OR from:NDTVProfitIndia) -is:retweet"},
+    {"key": "gold_commodities", "title": "Gold & commodities", "query": "(gold OR XAUUSD OR crude OR Brent OR OPEC) (from:Reuters OR from:business OR from:ReutersCommods OR from:GoldCouncil) -is:retweet"},
+    {"key": "ai_semis", "title": "AI & semiconductors", "query": "(Nvidia OR TSMC OR semiconductor OR \"AI chips\") (from:Reuters OR from:business OR from:WSJ OR from:FT OR from:CNBC) -is:retweet"}
+  ]
+}

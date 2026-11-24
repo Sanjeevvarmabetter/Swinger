@@ -16,7 +16,7 @@ import re
 import threading
 import time
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Iterator
 
 from tradingos.config import load_config
 from tradingos.db.models import AIReport
@@ -24,53 +24,56 @@ from tradingos.db.session import session_scope
 
 log = logging.getLogger(__name__)
 
-BASE_SYSTEM = """You are the research analyst inside a personal swing-trading research tool for one
-retail trader (US stocks/ETFs, 2–4 week holds, small account, long-only, no leverage, no options).
+BASE_SYSTEM = """You are the research desk inside a personal GLOBAL MARKET INTELLIGENCE terminal (US and Indian markets,
+gold and commodities, geopolitics, macro, technology). This is research, not financial advice.
 
 NON-NEGOTIABLE RULES
-1. Use ONLY the data in the JSON payload. Never invent prices, levels, statistics, news, dates or events.
-   If something needed is missing, say "not in supplied data" and state what to verify.
-2. All numbers (prices, indicators, position size, risk, R:R) were computed in Python. Quote them; do not
-   recompute or alter them. Do not produce new price targets or levels that are not in the payload.
+1. Use ONLY the data in the JSON payload. Never invent prices, levels, statistics, news, dates, events or sources.
+   If something needed is missing, say "Not in today's data" and state what to verify and where.
+2. All numbers were computed in Python. Quote them exactly; do not recompute or alter them.
 3. You have no live web access. Only reference news items present in the payload, citing source + timestamp.
-4. Separate clearly: FACTS (from payload) vs INTERPRETATION (your reasoning) vs SPECULATION.
-5. No certainty language, no guaranteed returns, no "will". Use conditional, probabilistic phrasing.
-6. Challenge the idea: always include why it could fail, what invalidates it, whether it is extended,
-   and whether reward justifies risk. Prefer "Wait"/"Avoid" when evidence is weak.
-7. Never suggest increasing risk, leverage, averaging down, or using long-term investments to fund trades.
-8. Be concise and structured with markdown headings and bullets. This is research, not financial advice.
+4. Separate clearly: facts (from payload) vs interpretation (yours) vs speculation.
+5. No certainty language, no guaranteed returns, no trade instructions, no price targets.
+6. Be concise and structured with markdown headings and bullets.
 """
 
 TASKS = {
-    "market_analysis": """Write a DAILY US MARKET INTELLIGENCE BRIEF with these sections:
-1. Overall market direction (use regime + index data). 2. Bullish developments. 3. Bearish developments.
-4. Strongest & weakest sectors (from sector table). 5. Macro picture (from macro table; note dates).
-6. Geopolitical developments (only from supplied headlines; explain plausible sector impact as interpretation).
-7. Upcoming catalysts (only supplied events/earnings). 8. Potential opportunity areas (sectors/themes, not
-trade calls). 9. Risks to watch. Cite each news-based claim as [Source, YYYY-MM-DD HH:MM UTC](url).""",
-    "stock_analysis": """Analyse this stock for a 2–4 week swing trade. Sections: Snapshot (facts), Trend & momentum,
-Relative strength & sector context, Fundamentals (only supplied fields), Recent news (cite), Upcoming catalysts &
-earnings risk, Bull case, Bear case, What would make this attractive (specific conditions using supplied
-levels), Verdict suggestion (Watch / Wait / Avoid / Plan eligible) with reasoning.""",
-    "technical_analysis": """Interpret the technical snapshot. Explain: 1 current trend, 2 key supports, 3 key resistances,
-4 momentum, 5 volume confirmation, 6 possible entry zones (ONLY using supplied levels/MAs), 7 invalidation level,
-8 bullish scenario, 9 bearish scenario. Mention daily vs weekly alignment if both are supplied.""",
-    "earnings_analysis": """Assess the earnings/fundamental data. Cover revenue growth, EPS, margins, cash flow, debt,
-valuation, guidance/analyst expectations ONLY if supplied. State whether the data strengthens or weakens a
-swing-trading thesis, and explicitly flag overnight gap risk if the next earnings date falls within ~4 weeks.""",
-    "trade_plan_review": """Critically review this trade plan as a skeptical risk-aware mentor. Sections: Thesis quality,
-Entry trigger quality, Stop placement (is it a true invalidation?), Targets vs supplied resistance, Is the stock
-overextended?, Does reward justify risk (use supplied R:R and costs)?, Why this trade might FAIL (at least 3
-reasons), What would invalidate the thesis, Additional confirmation needed, Final: agree or disagree with the
-deterministic verdict and why. You may NOT upgrade a verdict the risk engine marked Avoid.""",
-    "risk_review": """Review portfolio-level risk: open positions, aggregate open risk vs limit, concentration (sector/theme
-correlation), earnings exposure, regime. List concrete risk-reduction considerations. Never suggest adding risk.""",
-    "weekly_performance_review": """Write a trading performance review for the period. Sections: Summary stats (quote),
-What went well, What went wrong, Rule/risk violations, Repeated mistakes (from tags/diagnostics), Setup observations,
-One or two process changes to test next period. If the sample is small, say conclusions are anecdotal.""",
     "news_impact": """For each supplied headline, classify: confirmed fact / analyst interpretation / speculation; likely
-affected sectors/tickers; plausible direction and why (interpretation). Keep each item to 1–2 lines and cite.""",
+affected sectors/markets; plausible direction and why (interpretation). Keep each item to 1–2 lines and cite.""",
 }
+
+RESEARCH_SYSTEM = """You are the research desk of a personal GLOBAL MARKET INTELLIGENCE terminal. The reader is an
+India-based professional who follows US and Indian markets, gold, geopolitics, macro, AI and semiconductors.
+
+GROUNDING — NON-NEGOTIABLE
+1. Use ONLY the JSON CONTEXT supplied with each question (market snapshot, ranked news, calendars, company data).
+   You have no web access. Never invent prices, figures, events, dates, quotes, forecasts or sources.
+2. Quote numbers exactly as supplied with their as-of date. If a reading is marked stale, say so.
+3. If the context does not contain what the question needs, say plainly: "**Not in today's data:** …" and name the
+   kind of source that would answer it. Do not fill gaps from memory. General background knowledge (how a mechanism
+   works, e.g. why real yields matter for gold) is allowed but must be labelled **AI view**.
+4. Every news item and official document in CONTEXT has an "id" such as N3, C1, G2 or B1. Cite by writing the id in
+   square brackets right after the claim, e.g. "Gold fell 2.6% [N3]." or "[N1][N4]". Never write URLs or link
+   syntax yourself and never invent ids. Market-data numbers need no id: state the as-of date instead. Do NOT write
+   a "Sources" section — the app turns the ids into links and appends the verified source list automatically.
+5. Label interpretation: begin interpretive bullets or sentences with "**AI view:**". Facts from the data need a
+   citation or an as-of date instead. Never present speculation or a single-source report as confirmed.
+6. No certainty language, no buy/sell instructions, no price targets.
+
+FORMAT — the answer is rendered as Markdown in a research terminal (desktop and phone)
+- Never wrap the whole answer in a code fence. Never output JSON unless the user explicitly asks for JSON.
+- Match length to the question. A simple question gets a direct 2–6 sentence answer or a few bullets — no report
+  scaffolding. An analytical question gets a research note using `##` headings chosen from, in this order:
+  Executive Summary · What Happened · Why It Happened · Market Impact · Global Implications · Bullish Factors ·
+  Bearish Factors · Risks and Uncertainties · What to Watch Next. Skip any section the data cannot support.
+- Start analytical answers with a 2–4 bullet **Executive Summary**. End them with **Key takeaways** only when useful.
+- Tables: standard GitHub Markdown — header row, a |---| separator row, one row per line, at most 5 columns, short
+  cells, a blank line before and after. Use tables for comparisons of 3+ instruments, not for single numbers.
+- Numbers: signed percentages (+1.24%, -0.85%), currency symbols with thousands separators ($4,215.30, ₹82,450),
+  yields in % (4.91%). Keep the precision supplied.
+- Use > ⚠️ blockquotes for important warnings (stale data, unconfirmed reports, missing data).
+- Short paragraphs, bold only for key terms, no emojis other than ⚠️.
+"""
 
 INTEL_SYSTEM = """You are the research desk inside a personal GLOBAL MARKET INTELLIGENCE terminal for one reader:
 an India-based professional who invests in US and Indian markets, follows gold, geopolitics, AI and semiconductors,
@@ -109,7 +112,7 @@ For section 5 use `geopolitics` (keyword-matched theaters with event evidence; `
 analysis — present it as interpretation, never as news). For section 6 use `central_banks` and `economic_calendar`
 (quote actuals only where supplied; forecasts are unavailable — say so, never estimate). For section 11 use
 `trends_radar` stages and their relative-strength numbers.
-For section 7: the payload has no X/Twitter data yet — say "X integration not yet enabled" and nothing else.
+For section 7 use `x_intelligence` if present; if it says X is not configured, write one line saying so and nothing else.
 For market moves, quote the supplied numbers and freshness. Use the supplied risk-appetite checklist and gold
 driver readings rather than inventing explanations.""",
     "us_market_analyst": """Act as the US Market Analyst. Explain the current US market environment from the payload:
@@ -285,44 +288,69 @@ class GeminiClient:
                     data = resp.json()
                     self.active_model = f"groq/{m}"
                     return data["choices"][0]["message"]["content"]
-                last_err = f"Groq HTTP {resp.status_code} ({m}): {resp.text[:150]}"
-            except Exception as e:
-                last_err = f"Groq request error ({m}): {e}"
+                last_err = (f"Groq rate/size limit ({m}): the free tier allows about 8,000 tokens per minute — "
+                            "retry in a minute." if resp.status_code in (413, 429)
+                            else f"Groq HTTP {resp.status_code} ({m}): {resp.text[:150]}")
+                if resp.status_code in (401, 403):
+                    raise GeminiError("Groq rejected the API key (401/403). Check GROQ_API_KEY.")
+            except GeminiError:
+                raise
+            except Exception as e:  # noqa: BLE001
+                last_err = f"Groq request error ({m}): {type(e).__name__}"
         raise GeminiError(last_err or "Groq generation failed.")
 
-    def _chat_groq(self, history: list[dict], user_msg: str, context: dict | None = None) -> str:
-        """Native multi-turn chat on Groq."""
-        import requests
-        headers = {
-            "Authorization": f"Bearer {self.cfg.groq_api_key}",
-            "Content-Type": "application/json",
-        }
-        sys = BASE_SYSTEM + "\nYou are in CHAT mode. The JSON CONTEXT below is the only market data you may use.\n"
-        if context:
-            sys += "CONTEXT:\n" + json.dumps(to_jsonable(context), default=str)[:60_000]
-        messages = [{"role": "system", "content": sys}]
-        for h in history[-12:]:
-            role = "user" if h.get("role") == "user" else "assistant"
-            messages.append({"role": role, "content": h.get("text", "")})
-        messages.append({"role": "user", "content": user_msg})
+    def _gemini_chain(self) -> tuple[list[str], dict[str, str]]:
+        chain = list(dict.fromkeys([self.cfg.gemini_model, *FALLBACK_MODELS]))
+        exhausted = _exhausted()
+        outcomes = {m: f"daily quota used — resets in {(exhausted[m] - time.time()) / 3600:.1f}h"
+                    for m in chain if m in exhausted}
+        return [m for m in chain if m not in exhausted], outcomes
 
-        model = self.cfg.groq_model or "openai/gpt-oss-120b"
-        payload = {
-            "model": model,
-            "messages": messages,
-            "temperature": 0.4,
-            "max_tokens": 4096,
-        }
-        resp = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=60,
-        )
-        if resp.status_code == 200:
-            self.active_model = f"groq/{model}"
-            return resp.json()["choices"][0]["message"]["content"]
-        raise GeminiError(f"Groq chat failed (HTTP {resp.status_code}): {resp.text[:150]}")
+    @staticmethod
+    def _gemini_error_action(model: str, e: Exception, attempt: int, outcomes: dict[str, str]) -> str:
+        """Classify a Gemini exception → 'retry' (same model) or 'next' (fall back). Fatal errors raise GeminiError."""
+        from google.genai import errors
+        if isinstance(e, errors.ClientError):
+            code, msg = getattr(e, "code", None), str(e)
+            if code in (401, 403):
+                raise GeminiError("Gemini rejected the API key (401/403). Check GEMINI_API_KEY in .env.") from e
+            if code == 404:
+                _mark_exhausted(model, 24 * 3600)   # don't spend calls on it again today
+                outcomes[model] = "not available to this key (404)"
+                return "next"
+            if code == 429:
+                delay = parse_retry_seconds(msg)
+                if "per day" in msg.lower() or (delay is not None and delay > 120):
+                    _mark_exhausted(model, delay or 6 * 3600)
+                    outcomes[model] = (f"daily quota used — resets in {(delay or 0) / 3600:.1f}h"
+                                       if delay else "daily quota used")
+                    return "next"
+                if attempt == 0 and (delay or 5) <= 30:
+                    time.sleep(delay or 5)
+                    return "retry"
+                outcomes[model] = "rate-limited (per-minute)"
+                return "next"
+            if code == 400 and "token" in msg.lower():
+                raise GeminiError(f"Prompt too large for {model}: {msg[:200]}") from e
+            outcomes[model] = f"HTTP {code}: {getattr(e, 'message', msg)[:100]}"
+            return "next"
+        if isinstance(e, errors.ServerError):
+            outcomes[model] = f"overloaded (HTTP {getattr(e, 'code', 503)})"
+        else:   # network
+            outcomes[model] = f"{type(e).__name__}: {str(e)[:80]}"
+        if attempt == 0:
+            time.sleep(2)
+            return "retry"
+        return "next"
+
+    @staticmethod
+    def _gemini_failure(outcomes: dict[str, str]) -> GeminiError:
+        detail = "; ".join(f"{m}: {o}" for m, o in outcomes.items())
+        daily_out = [m for m, o in outcomes.items() if o.startswith("daily quota")]
+        hint = (" Your key is on the free tier (about 20 requests/day per model); quotas reset at midnight US "
+                "Pacific time. Enabling billing on the Google AI Studio project raises the limits."
+                if daily_out else " Retry in a few minutes.")
+        return GeminiError(f"No Gemini model could answer — {detail}.{hint}")
 
     def _generate_gemini(self, prompt: str, system: str = BASE_SYSTEM, temperature: float = 0.3,
                          max_output_tokens: int = 8192) -> str:
@@ -332,86 +360,141 @@ class GeminiClient:
         — persisted on disk so neither the app nor the scheduler wastes further requests on it. Short 429s
         (per-minute limits) wait the suggested delay once (≤30 s). 503/500 get one quick retry, then fall back.
         """
-        from google.genai import errors, types
+        from google.genai import types
         client = self.client()
         config = types.GenerateContentConfig(system_instruction=system, temperature=temperature,
                                              max_output_tokens=max_output_tokens)
-        chain = list(dict.fromkeys([self.cfg.gemini_model, *FALLBACK_MODELS]))
-        exhausted = _exhausted()
-        skipped = [m for m in chain if m in exhausted]
-        candidates = [m for m in chain if m not in exhausted]
-        outcomes: dict[str, str] = {m: f"daily quota used — resets in {(exhausted[m] - time.time()) / 3600:.1f}h"
-                                    for m in skipped}
+        candidates, outcomes = self._gemini_chain()
         for model in candidates:
             for attempt in range(2):
                 self._throttle()
                 try:
                     resp = client.models.generate_content(model=model, contents=prompt, config=config)
-                    text = getattr(resp, "text", None)
-                    if not text:
-                        reason = ""
-                        try:
-                            reason = str(resp.candidates[0].finish_reason)
-                        except Exception:
-                            pass
-                        outcomes[model] = f"empty response {reason}".strip()
-                        break
-                    self.active_model = model
-                    if model != self.cfg.gemini_model:
-                        log.info("Gemini answered with fallback model %s", model)
-                    return text
-                except errors.ClientError as e:
-                    code, msg = getattr(e, "code", None), str(e)
-                    if code in (401, 403):
-                        raise GeminiError("Gemini rejected the API key (401/403). Check GEMINI_API_KEY in .env.") from e
-                    if code == 404:
-                        _mark_exhausted(model, 24 * 3600)   # don't spend calls on it again today
-                        outcomes[model] = "not available to this key (404)"
-                        break
-                    if code == 429:
-                        delay = parse_retry_seconds(msg)
-                        daily = "per day" in msg.lower() or (delay is not None and delay > 120)
-                        if daily:
-                            _mark_exhausted(model, delay or 6 * 3600)
-                            outcomes[model] = (f"daily quota used — resets in {(delay or 0) / 3600:.1f}h"
-                                               if delay else "daily quota used")
-                            break
-                        if attempt == 0 and (delay or 5) <= 30:
-                            time.sleep(delay or 5)
-                            continue
-                        outcomes[model] = "rate-limited (per-minute)"
-                        break
-                    if code == 400 and "token" in msg.lower():
-                        raise GeminiError(f"Prompt too large for {model}: {msg[:200]}") from e
-                    outcomes[model] = f"HTTP {code}: {getattr(e, 'message', msg)[:100]}"
-                    break
-                except errors.ServerError as e:
-                    outcomes[model] = f"overloaded (HTTP {getattr(e, 'code', 503)})"
-                    if attempt == 0:
-                        time.sleep(2)
+                except Exception as e:  # noqa: BLE001 — classified below
+                    if self._gemini_error_action(model, e, attempt, outcomes) == "retry":
                         continue
                     break
-                except Exception as e:  # network
-                    outcomes[model] = f"{type(e).__name__}: {str(e)[:80]}"
-                    if attempt == 0:
-                        time.sleep(2)
-                        continue
+                text = getattr(resp, "text", None)
+                if not text:
+                    reason = ""
+                    try:
+                        reason = str(resp.candidates[0].finish_reason)
+                    except Exception:
+                        pass
+                    outcomes[model] = f"empty response {reason}".strip()
                     break
-        detail = "; ".join(f"{m}: {o}" for m, o in outcomes.items())
-        daily_out = [m for m, o in outcomes.items() if o.startswith("daily quota")]
-        hint = (" Your key is on the free tier (about 20 requests/day per model); quotas reset at midnight US "
-                "Pacific time. Enabling billing on the Google AI Studio project raises the limits."
-                if daily_out else " Retry in a few minutes.")
-        raise GeminiError(f"No Gemini model could answer — {detail}.{hint}")
+                self.active_model = model
+                if model != self.cfg.gemini_model:
+                    log.info("Gemini answered with fallback model %s", model)
+                return text
+        raise self._gemini_failure(outcomes)
 
-    def _chat_gemini(self, history: list[dict], user_msg: str, context: dict | None = None) -> str:
-        """Multi-turn chat using Gemini."""
-        sys = BASE_SYSTEM + "\nYou are in CHAT mode. The JSON CONTEXT below is the only market data you may use.\n"
+    # ------------------------------------------------------------------ research chat (streaming)
+    @staticmethod
+    def _chat_system(context: dict | None) -> str:
+        sys_prompt = RESEARCH_SYSTEM
         if context:
-            sys += "CONTEXT:\n" + json.dumps(to_jsonable(context), default=str)[:60_000]
-        convo = "\n".join(f"{'USER' if h.get('role') == 'user' else 'ASSISTANT'}: {h.get('text', '')}" for h in history[-12:])
+            sys_prompt += ("\nCONTEXT (JSON — the only market data and news you may use):\n"
+                           + json.dumps(to_jsonable(context), default=str)[:60_000])
+        return sys_prompt
+
+    @staticmethod
+    def _history_msgs(history: list[dict]) -> list[dict]:
+        """Last turns as role/content pairs. Error entries are never sent back to the model."""
+        out = []
+        for h in history[-6:]:
+            if h.get("role") not in ("user", "assistant", "model"):
+                continue
+            # Older turns are shortened: free-tier providers cap tokens per request (Groq on-demand: 8k TPM).
+            out.append({"role": "user" if h["role"] == "user" else "assistant", "content": str(h.get("text", ""))[:1500]})
+        return out
+
+    def _groq_stream(self, history: list[dict], user_msg: str, context: dict | None) -> Iterator[str]:
+        import requests
+        headers = {"Authorization": f"Bearer {self.cfg.groq_api_key}", "Content-Type": "application/json"}
+        messages = [{"role": "system", "content": self._chat_system(context)}, *self._history_msgs(history),
+                    {"role": "user", "content": user_msg}]
+        last_err = None
+        for m in dict.fromkeys([self.cfg.groq_model, *GROQ_MODELS]):
+            payload = {"model": m, "messages": messages, "temperature": 0.35, "max_tokens": 6144, "stream": True}
+            try:
+                resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload,
+                                     stream=True, timeout=(10, 120))
+            except Exception as e:  # noqa: BLE001
+                last_err = f"Groq request error ({m}): {type(e).__name__}"
+                continue
+            if resp.status_code in (401, 403):
+                raise GeminiError("Groq rejected the API key (401/403). Check GROQ_API_KEY.")
+            if resp.status_code != 200:
+                if resp.status_code in (413, 429):
+                    last_err = (f"Groq rate limit reached ({m}: free tier allows about 8,000 tokens per minute) — "
+                                "wait a minute and ask again.")
+                else:
+                    last_err = f"Groq HTTP {resp.status_code} ({m}): {resp.text[:150]}"
+                continue
+            self.active_model = f"groq/{m}"
+            resp.encoding = "utf-8"   # SSE has no charset header; requests would otherwise assume ISO-8859-1
+            yielded = False
+            try:
+                for line in resp.iter_lines(decode_unicode=True):
+                    if not line or not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        delta = json.loads(data)["choices"][0]["delta"].get("content")
+                    except (ValueError, KeyError, IndexError, TypeError):
+                        continue
+                    if delta:
+                        yielded = True
+                        yield delta
+            except Exception as e:  # noqa: BLE001
+                if yielded:
+                    raise GeminiError(f"The response was interrupted ({type(e).__name__}). Ask again to retry.") from e
+                last_err = f"Groq stream error ({m}): {type(e).__name__}"
+                continue
+            if yielded:
+                return
+            last_err = f"Groq returned an empty response ({m})"
+        raise GeminiError(last_err or "Groq chat failed.")
+
+    def _gemini_stream(self, history: list[dict], user_msg: str, context: dict | None) -> Iterator[str]:
+        from google.genai import types
+        client = self.client()
+        config = types.GenerateContentConfig(system_instruction=self._chat_system(context), temperature=0.35,
+                                             max_output_tokens=8192)
+        convo = "\n\n".join(f"{'USER' if h['role'] == 'user' else 'ASSISTANT'}: {h['content']}"
+                             for h in self._history_msgs(history))
         prompt = (f"Conversation so far:\n{convo}\n\n" if convo else "") + f"USER: {user_msg}\nASSISTANT:"
-        return self._generate_gemini(prompt, system=sys, temperature=0.4)
+        candidates, outcomes = self._gemini_chain()
+        for model in candidates:
+            for attempt in range(2):
+                self._throttle()
+                yielded = False
+                try:
+                    stream = (client.models.generate_content_stream(model=model, contents=prompt, config=config)
+                              if hasattr(client.models, "generate_content_stream")
+                              else [client.models.generate_content(model=model, contents=prompt, config=config)])
+                    for chunk in stream:
+                        text = getattr(chunk, "text", None)
+                        if text:
+                            yielded = True
+                            self.active_model = model
+                            yield text
+                except GeminiError:
+                    raise
+                except Exception as e:  # noqa: BLE001
+                    if yielded:
+                        raise GeminiError(f"The response was interrupted ({type(e).__name__}). Ask again to retry.") from e
+                    if self._gemini_error_action(model, e, attempt, outcomes) == "retry":
+                        continue
+                    break
+                if yielded:
+                    return
+                outcomes[model] = "empty response"
+                break
+        raise self._gemini_failure(outcomes)
 
     def generate(self, prompt: str, system: str = BASE_SYSTEM, temperature: float = 0.3,
                  max_output_tokens: int = 8192) -> str:
@@ -443,30 +526,91 @@ class GeminiClient:
             "to your .env file or Streamlit secrets."
         )
 
-    def chat(self, history: list[dict], user_msg: str, context: dict | None = None) -> str:
-        """Multi-turn chat routed to the active AI provider."""
+    def chat_stream(self, history: list[dict], user_msg: str, context: dict | None = None) -> Iterator[str]:
+        """Stream a research-desk answer, routed to the active provider (Groq preferred, Gemini fallback).
+
+        Provider fallback only happens before the first token; a failure mid-answer raises GeminiError so the UI
+        never silently splices two different answers together.
+        """
         if self._client is not None and hasattr(self._client, "models"):
-            return self._chat_gemini(history, user_msg, context)
-
+            yield from self._gemini_stream(history, user_msg, context)
+            return
         if self.cfg.groq_configured and (self.cfg.ai_provider in ("groq", "auto") or not self.cfg.gemini_configured):
+            started = False
             try:
-                return self._chat_groq(history, user_msg, context)
-            except Exception as e:
-                if self.cfg.gemini_configured and self.cfg.ai_provider == "auto":
-                    log.warning("Groq chat failed (%s), falling back to Gemini", e)
-                    return self._chat_gemini(history, user_msg, context)
-                raise
-
+                for piece in self._groq_stream(history, user_msg, context):
+                    started = True
+                    yield piece
+                return
+            except GeminiError as e:
+                if started or not (self.cfg.gemini_configured and self.cfg.ai_provider == "auto"):
+                    raise
+                log.warning("Groq chat failed (%s), falling back to Gemini", e)
+            yield from self._gemini_stream(history, user_msg, context)
+            return
         if self.cfg.gemini_configured:
-            return self._chat_gemini(history, user_msg, context)
+            yield from self._gemini_stream(history, user_msg, context)
+            return
+        raise GeminiError("No AI provider configured. Add GROQ_API_KEY or GEMINI_API_KEY to .env or Streamlit secrets.")
 
-        raise GeminiError("No AI provider configured.")
+    def chat(self, history: list[dict], user_msg: str, context: dict | None = None) -> str:
+        """Non-streaming convenience wrapper around chat_stream()."""
+        return "".join(self.chat_stream(history, user_msg, context))
 
 
 AIClient = GeminiClient
 
 
 _CLIENT: GeminiClient | None = None
+
+
+GROQ_PAYLOAD_BUDGET = 15_000   # chars of compact JSON ≈ 5k tokens; Groq on-demand tier allows ~8k tokens/minute
+
+
+def shrink_json(data: Any, max_chars: int) -> tuple[Any, bool]:
+    """Shrink a JSON-able structure below max_chars without breaking it: repeatedly halve the largest list (lists
+    in payloads are ranked, so the head is kept), then shorten the longest string. Returns (data, was_shrunk)."""
+    import copy
+    d = copy.deepcopy(data)
+
+    def size(o) -> int:
+        return len(json.dumps(o, default=str, separators=(",", ":")))
+
+    if size(d) <= max_chars:
+        return d, False
+    for _ in range(200):
+        if size(d) <= max_chars:
+            break
+        best, best_sz, best_parent, best_key = None, 0, None, None
+        stack = [(d, None, None)]
+        while stack:
+            node, parent, key = stack.pop()
+            if isinstance(node, list) and len(node) > 1:
+                sz = size(node)
+                if sz > best_sz:
+                    best, best_sz, best_parent, best_key = node, sz, parent, key
+            children = node.items() if isinstance(node, dict) else enumerate(node) if isinstance(node, list) else []
+            for k, v in children:
+                if isinstance(v, (dict, list)):
+                    stack.append((v, node, k))
+        if best is not None:
+            best_parent[best_key] = best[: max(1, len(best) // 2)]
+            continue
+        # no shrinkable list left: shorten the longest string
+        longest, lp, lk = "", None, None
+        stack = [d]
+        while stack:
+            node = stack.pop()
+            items = node.items() if isinstance(node, dict) else enumerate(node) if isinstance(node, list) else []
+            for k, v in items:
+                if isinstance(v, str) and len(v) > len(longest):
+                    longest, lp, lk = v, node, k
+                elif isinstance(v, (dict, list)):
+                    stack.append(v)
+        if lp is None or len(longest) < 40:
+            break
+        lp[lk] = longest[: len(longest) // 2] + "…"
+    return d, True
 
 
 def get_client() -> GeminiClient:
@@ -478,15 +622,41 @@ def get_client() -> GeminiClient:
 
 def _run(kind: str, payload: dict, subject: str = "", extra_instructions: str = "",
          task_text: str | None = None, system: str = BASE_SYSTEM, max_output_tokens: int = 8192) -> str:
+    """Run a one-shot analysis. Large payloads go to Gemini first (large context window); Groq (≈8k tokens/minute on
+    the free tier) receives a structurally shrunk payload. Nothing is ever truncated mid-JSON."""
     data = to_jsonable(payload)
-    body = json.dumps(data, default=str, indent=1)
-    if len(body) > 120_000:
-        body = body[:120_000] + "\n...[truncated]"
-    prompt = f"TASK:\n{task_text or TASKS[kind]}\n{extra_instructions}\n\nDATA (JSON, computed by Python):\n{body}"
+    full, _ = shrink_json(data, 120_000)
+    head = f"TASK:\n{task_text or TASKS[kind]}\n{extra_instructions}\n\nDATA (JSON, computed by Python"
     client = get_client()
-    text = client.generate(prompt, system=system, max_output_tokens=max_output_tokens)
+    cfg = client.cfg
+    groq_ok = cfg.groq_configured and cfg.ai_provider in ("groq", "auto")
+    full_body = json.dumps(full, default=str, separators=(",", ":"))
+    small, shrunk = shrink_json(full, GROQ_PAYLOAD_BUDGET)
+    small_body = json.dumps(small, default=str, separators=(",", ":"))
+    note = ("; lists were shortened to fit the provider's request limit — say so if something seems missing"
+            if shrunk else "")
+    body = full_body
+    if client._client is not None and hasattr(client._client, "models"):        # injected Gemini (tests)
+        text = client.generate(f"{head}):\n{full_body}", system=system, max_output_tokens=max_output_tokens)
+    elif groq_ok and not shrunk:
+        text = client.generate(f"{head}):\n{full_body}", system=system, max_output_tokens=max_output_tokens)
+    elif cfg.gemini_configured and cfg.ai_provider != "groq":
+        try:
+            text = client._generate_gemini(f"{head}):\n{full_body}", system=system,
+                                           max_output_tokens=max_output_tokens)
+        except GeminiError as e:
+            if not groq_ok:
+                raise
+            log.warning("Gemini failed for large payload (%s); using Groq with a shortened payload", e)
+            body = small_body
+            text = client._generate_groq(f"{head}{note}):\n{small_body}", system, 0.3, max_output_tokens)
+    elif groq_ok:
+        body = small_body
+        text = client._generate_groq(f"{head}{note}):\n{small_body}", system, 0.3, max_output_tokens)
+    else:
+        text = client.generate(f"{head}):\n{full_body}", system=system, max_output_tokens=max_output_tokens)
     with session_scope() as s:
-        s.add(AIReport(kind=kind, subject=subject, model=client.active_model,
+        s.add(AIReport(kind=kind, subject=subject[:64], model=client.active_model[:64],
                        input_json=body[:200_000], output_text=text))
     return text
 
@@ -495,35 +665,6 @@ def intel_analysis(kind: str, payload: dict, subject: str = "", **fmt) -> str:
     """Run one of the INTEL_TASKS with the intelligence-desk system prompt."""
     task = INTEL_TASKS[kind].format(**fmt) if fmt else INTEL_TASKS[kind]
     return _run(kind, payload, subject or kind, task_text=task, system=INTEL_SYSTEM, max_output_tokens=16384)
-
-
-# ---- public AI functions (each receives structured data from Python) ----
-def market_analysis(payload: dict) -> str:
-    return _run("market_analysis", payload, "US market")
-
-
-def stock_analysis(ticker: str, payload: dict) -> str:
-    return _run("stock_analysis", payload, ticker)
-
-
-def technical_analysis(ticker: str, payload: dict) -> str:
-    return _run("technical_analysis", payload, ticker)
-
-
-def earnings_analysis(ticker: str, payload: dict) -> str:
-    return _run("earnings_analysis", payload, ticker)
-
-
-def trade_plan_review(ticker: str, payload: dict) -> str:
-    return _run("trade_plan_review", payload, ticker)
-
-
-def risk_review(payload: dict) -> str:
-    return _run("risk_review", payload, "portfolio")
-
-
-def weekly_performance_review(payload: dict) -> str:
-    return _run("weekly_performance_review", payload, payload.get("period", ""))
 
 
 def news_impact(payload: dict) -> str:

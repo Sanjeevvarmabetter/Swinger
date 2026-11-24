@@ -70,56 +70,19 @@ def test_feed_failure_is_reported_not_raised(monkeypatch):
 
 def test_stock_context_missing_price(fake_provider):
     from tradingos import services
-    from tradingos.settings import TradingSettings
+    from tradingos.settings import AppSettings
     fake_provider({})
-    ctx = services.stock_context("ZZZZ", TradingSettings(), with_fundamentals=False)
+    ctx = services.stock_context("ZZZZ", AppSettings(), with_fundamentals=False)
     assert "error" in ctx
 
 
-def test_provider_outage_scan_returns_empty(fake_provider):
-    from tradingos.analysis.scanner import run_scan
-    from tradingos.settings import TradingSettings
-    fake_provider({}, fail=True)
-    out = run_scan(TradingSettings(), with_earnings=False, persist=False)
-    assert out.candidates.empty and out.data.error
-
-
-def test_scanner_returns_nothing_for_flat_market(fake_provider, flat):
-    from tradingos.analysis.scanner import run_scan
-    from tradingos.data.providers import load_universe
-    from tradingos.settings import TradingSettings
-    frames = {t: flat for t in list(load_universe()["ticker"]) + ["SPY", "XLK", "XLF"]}
-    fake_provider(frames)
-    out = run_scan(TradingSettings(min_avg_dollar_volume_m=1), with_earnings=False, persist=False)
-    assert out.candidates.empty
-
-
-def test_scanner_finds_trending_stock(fake_provider, flat):
-    from tradingos.analysis.scanner import run_scan
-    from tradingos.settings import TradingSettings
-    rng = np.random.default_rng(1)
-    n = 300
-    trend = make_ohlcv(30 * np.exp(np.cumsum(0.004 + rng.normal(0, 0.008, n))), vol=3_000_000)
-    fake_provider({"SPY": flat, "NVDA": trend, "KO": flat})
-    out = run_scan(TradingSettings(min_avg_dollar_volume_m=1), with_earnings=False, persist=True)
-    assert list(out.candidates["Ticker"]) == ["NVDA"]
-    assert 0 <= out.candidates.iloc[0]["Score"] <= 100
-    from tradingos.analysis.scanner import latest_scan
-    saved, run_at, _ = latest_scan()
-    assert run_at is not None and list(saved["Ticker"]) == ["NVDA"]
-
-
-def test_trade_plan_end_to_end(fake_provider, uptrend):
+def test_stock_context_has_snapshot_and_no_trade_fields(fake_provider, uptrend):
     from tradingos import services
-    from tradingos.settings import TradingSettings
+    from tradingos.settings import AppSettings
     fake_provider({"SPY": uptrend, "TEST": uptrend})
-    plan = services.build_trade_plan("TEST", "Pullback", TradingSettings(share_increment=0.01))
-    ev = plan["evaluation"]
-    assert ev.verdict in ("Plan eligible", "Wait", "Watch", "Avoid")
-    assert plan["stop"] < plan["entry"]
-    assert ev.planned_loss_net <= 300 * 0.01 + 0.5  # never exceeds budget beyond cost estimate
-    pid = services.save_trade_plan(plan, "thesis", "", "", "2-4 weeks")
-    assert pid > 0 and len(services.list_plans()) == 1
+    ctx = services.stock_context("TEST", AppSettings(), with_fundamentals=False)
+    assert "error" not in ctx and ctx["daily"]["close"] > 0
+    assert not hasattr(services, "build_trade_plan")
 
 
 def test_batch_as_of_flags_lagging_tickers():

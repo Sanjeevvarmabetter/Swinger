@@ -148,10 +148,9 @@ def build_payload(edition: str, force: bool = False, now: datetime | None = None
     stage2, s2_errs = _stage2_sections(now, ed)
     watch = set(MAG7.values())
     try:
-        from tradingos import watchlist
         from tradingos.data.providers import load_universe
-        watch |= set(load_universe()["ticker"]) | {w.ticker for w in watchlist.items()}
-    except Exception:
+        watch |= set(load_universe()["ticker"])
+    except Exception:  # noqa: BLE001
         pass
     earn = calendars.earnings_calendar(days=7, symbols=watch)
 
@@ -187,9 +186,22 @@ def build_payload(edition: str, force: bool = False, now: datetime | None = None
             "missing_symbols": meta.get("missing", []),
             "errors": [e for e in [meta.get("error"), *ev_errs, earn.error, *gold_ctx.get("errors", []), *s2_errs] if e],
             "not_available_in_this_app": [{"item": n, "why": w, "official_link": u} for n, w, u in UNAVAILABLE],
-            "x_twitter": "X integration not yet enabled (Stage 3).",
+            "x_twitter": _x_status(),
         },
+        "x_intelligence": _x_section(),
     }
+
+
+def _x_section() -> dict:
+    try:
+        from tradingos.intel import xintel
+        return xintel.briefing_section()
+    except Exception as e:  # noqa: BLE001
+        return {"status": f"X data unavailable: {type(e).__name__}"}
+
+
+def _x_status() -> str:
+    return _x_section().get("status", "")
 
 
 def _stage2_sections(now: datetime, ed: Edition) -> tuple[dict, list[str]]:
@@ -398,11 +410,11 @@ def deterministic_markdown(p: dict) -> str:
           for e in ev[:15]] or ["- No scheduled events found."]
     earn = p["upcoming_earnings_watchlist"]
     if earn:
-        L += ["", "**Earnings (watchlist/universe, next 7 days):** " +
+        L += ["", "**Earnings (tracked large caps, next 7 days):** " +
               ", ".join(f"{e['symbol']} {e['date']}{' ' + e['when'] if e.get('when') else ''}" for e in earn[:25])]
     L += ["", "## Data quality"]
     dq = p["data_quality"]
-    L += [f"- Freshness: " + ", ".join(f"{k}: {v}" for k, v in dq["freshness_counts"].items())]
+    L += ["- Freshness: " + ", ".join(f"{k}: {v}" for k, v in dq["freshness_counts"].items())]
     if dq["missing_symbols"]:
         L += [f"- Missing: {', '.join(dq['missing_symbols'])}"]
     L += [f"- Error: {e}" for e in dq["errors"]]
@@ -429,7 +441,7 @@ def generate(edition: str, use_ai: bool = True, refresh: bool = True, force_data
     payload = build_payload(edition, force=force_data, now=now)
     det = deterministic_markdown(payload)
     ai_md, model, err = "", "", ""
-    if use_ai and load_config().gemini_configured:
+    if use_ai and load_config().ai_configured:
         from tradingos.ai import gemini
         try:
             ai_md = gemini.intel_analysis("daily_briefing", ai_payload(payload), subject=edition, edition_title=ed.title,
@@ -439,7 +451,7 @@ def generate(edition: str, use_ai: bool = True, refresh: bool = True, force_data
         except Exception as e:
             err = f"{type(e).__name__}: {e}"
     elif use_ai:
-        err = "Gemini not configured (GEMINI_API_KEY)."
+        err = "AI not configured (GROQ_API_KEY or GEMINI_API_KEY)."
     from tradingos.ai.gemini import to_jsonable
     b = Briefing(edition=edition, edition_date=edition_date_for(ed, now), deterministic_md=det, ai_md=ai_md,
                  model=model, ai_error=err, payload_json=json.dumps(to_jsonable(payload), default=str)[:1_500_000])

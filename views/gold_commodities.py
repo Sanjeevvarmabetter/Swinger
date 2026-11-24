@@ -85,7 +85,7 @@ with t_pos:
         d = pos.data
         fig = make_subplots(specs=[[{"secondary_y": True}]])
         fig.add_trace(go.Bar(x=d["date"], y=d["mm_net"], name="Managed money net (contracts)",
-                             marker_color=["#10B981" if v >= 0 else "#F43F5E" for v in d["mm_net"]]))
+                             marker_color=["#2FBF71" if v >= 0 else "#EF5B67" for v in d["mm_net"]]))
         fig.add_trace(go.Scatter(x=d["date"], y=d["open_interest_all"], name="Open interest",
                                  line=dict(color="#94A3B8", width=1)), secondary_y=True)
         fig.update_layout(title=dict(text=f"{contract} — CFTC managed-money positioning", x=0.01, font=dict(size=12)))
@@ -102,9 +102,9 @@ with t_chart:
         gs = g[g.index >= g.index[-1] - pd.Timedelta(days=win)]
         rs = real.data[real.data.index >= gs.index[0]]
         fig = make_subplots(specs=[[{"secondary_y": True}]])
-        fig.add_trace(go.Scatter(x=gs.index, y=gs.values, name="Gold (USD/oz)", line=dict(color="#F59E0B", width=1.8)))
+        fig.add_trace(go.Scatter(x=gs.index, y=gs.values, name="Gold (USD/oz)", line=dict(color="#E9A23B", width=1.8)))
         fig.add_trace(go.Scatter(x=rs.index, y=rs.values, name="10Y real yield (%, inverted)",
-                                 line=dict(color="#38BDF8", width=1.4)), secondary_y=True)
+                                 line=dict(color="#4EA8F2", width=1.4)), secondary_y=True)
         fig.update_yaxes(autorange="reversed", secondary_y=True)
         fig.update_layout(title=dict(text="Gold vs 10Y real yield (right axis inverted)", x=0.01, font=dict(size=12)))
         st.plotly_chart(charts._layout(fig, 360), width="stretch")
@@ -142,6 +142,7 @@ with t_ai:
                         [["tier", "headline", "source", "published_utc", "url", "info_type"]] if len(iu.ranked_news(3)) else []),
                "not_measured": ["Gold ETF flows", "Central-bank purchases", "India/China physical demand", "MCX prices"]}
     ui.gemini_panel("gold_analyst", "Explain what is driving gold",
-                    lambda: gemini.intel_analysis("gold_analyst", payload, "gold"))
+                    lambda: gemini.intel_analysis("gold_analyst", payload, "gold"),
+                    payload_for_links=payload)
 
 ui.disclaimer()

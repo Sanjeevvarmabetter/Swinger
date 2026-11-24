@@ -1,38 +1,53 @@
-"""News Intelligence — ranked, de-duplicated, entity-tagged news with story threads and source statistics."""
+"""News Archive — every stored headline, searchable and ranked, plus the archive of past briefings."""
 from __future__ import annotations
 
+import json
 from collections import Counter
 
 import pandas as pd
 import streamlit as st
 
-from tradingos import watchlist
 from tradingos.ai import gemini
 from tradingos.config import load_config
 from tradingos.data.news import load_feed_config, refresh_news
+from tradingos.intel import briefing as br
 from tradingos.intel import entities
 from tradingos.intel.news_rank import SCORING_RULES, TIERS, rank_news, threads
-from tradingos.journal.service import trades_dataframe
+from tradingos.settings import load_settings
 from tradingos.ui import components as ui
 from tradingos.ui import intel_ui as iu
 
 ui.render_top_bar(show_refresh=False)
-iu.page_header("News Intelligence", "Ranked, de-duplicated and source-attributed headlines · story threads · entities · "
-               "factual vs speculative tagging. Headlines + short feed summaries only; full articles stay with publishers.")
+iu.page_header("News Archive", "Every stored headline — ranked, de-duplicated and source-attributed — plus past "
+               "briefings. Headlines and short feed summaries only; full articles stay with the publishers.")
 
-cfg = ui.settings()
+cfg = load_settings()
 
-with st.expander("Feeds, ticker news & data sources", expanded=False):
+# ----------------------------------------------------------------------------- search + filters
+c1, c2 = st.columns([2, 1])
+query = c1.text_input("Search headlines, summaries or a ticker", placeholder="e.g. tariff, RBI, NVDA, gold",
+                      key="arch_q").strip()
+days = c2.selectbox("Window", [1, 2, 3, 7, 14, 30, 90, 365], index=3, format_func=lambda d: f"Last {d} days",
+                    key="arch_days")
+with st.expander("More filters", icon=":material/filter_list:"):
+    f = st.columns(3)
+    region = f[0].selectbox("Region", ["All", "US", "India", "Global", "Asia", "Europe"])
+    cat = f[1].selectbox("Category", ["All", "macro", "geopolitics", "technology", "earnings", "commodities", "markets",
+                                      "regulation", "company"])
+    tiers = f[2].multiselect("Importance", [t for _, t in TIERS], default=["MUST KNOW", "IMPORTANT", "INTERESTING"])
+    g = st.columns(3)
+    info = g[0].selectbox("Verification", ["All", "Confirmed (official source)", "Reported (news media)",
+                                           "Analyst interpretation / opinion", "Speculation / unconfirmed"])
+    sent = g[1].selectbox("Tone (keyword heuristic)", ["All", "positive", "negative", "neutral"])
+    min_src = g[2].selectbox("Independent sources", [1, 2, 3], format_func=lambda n: f"≥ {n}")
+with st.expander("Feeds & fetching", icon=":material/rss_feed:"):
     st.dataframe(pd.DataFrame(load_feed_config())[["name", "region", "category", "official", "url"]], hide_index=True,
                  width="stretch", column_config={"url": st.column_config.LinkColumn("URL", display_text="feed ↗")})
     st.caption("Also ingested: Finnhub general & forex news (free tier). Feed health is on the System Health page.")
     if not load_config().sec_user_agent:
-        st.info("SEC EDGAR filings require SEC_USER_AGENT configured in .env.")
-    wl = [w.ticker for w in watchlist.items()]
-    open_t = trades_dataframe("OPEN")
-    op = list(open_t["ticker"].unique()) if len(open_t) else []
-    extra = st.text_input("Ticker news for (watchlist & open positions)", ",".join(dict.fromkeys(wl + op)))
-    if st.button("↻ Fetch feeds + ticker news", type="primary"):
+        st.caption("SEC EDGAR filings need SEC_USER_AGENT in .env.")
+    extra = st.text_input("Also fetch company news for tickers (comma-separated, optional)", "", key="arch_tickers")
+    if st.button("Fetch feeds now", type="primary", icon=":material/refresh:"):
         tick = [t.strip().upper() for t in extra.split(",") if t.strip()][:25]
         with st.spinner("Ingesting RSS feeds, Finnhub and company news…"):
             status = refresh_news(tick, max_age_days=max(cfg.news_max_age_days, 35))
@@ -42,21 +57,7 @@ with st.expander("Feeds, ticker news & data sources", expanded=False):
         for e in status["errors"][:5]:
             st.warning(e)
 
-# ----------------------------------------------------------------------------- filters
-f = st.columns([1, 1, 1, 1, 1.2])
-days = f[0].selectbox("Window", [1, 2, 3, 7, 14, 30], index=3, format_func=lambda d: f"Last {d}d")
-region = f[1].selectbox("Region", ["All", "US", "India", "Global", "Asia", "Europe"])
-cat = f[2].selectbox("Category", ["All", "macro", "geopolitics", "technology", "earnings", "commodities", "markets",
-                                  "regulation", "company"])
-tiers = f[3].multiselect("Tier", [t for _, t in TIERS], default=["MUST KNOW", "IMPORTANT", "INTERESTING"])
-query = f[4].text_input("Search / symbol", placeholder="e.g. tariff, RBI, NVDA").strip()
-g = st.columns([1.3, 1, 1])
-info = g[0].selectbox("Information veracity", ["All", "Confirmed (official source)", "Reported (news media)",
-                                               "Analyst interpretation / opinion", "Speculation / unconfirmed"])
-sent = g[1].selectbox("Sentiment (keyword heuristic)", ["All", "positive", "negative", "neutral"])
-min_src = g[2].selectbox("Min. independent sources", [1, 2, 3], format_func=lambda n: f"≥ {n}")
-
-raw = iu.news_raw(35)
+raw = iu.news_raw(max(35, days * 2))
 now = pd.Timestamp(iu.utc_now_str()[:16])
 df = raw[pd.to_datetime(raw["published_utc"]) >= now - pd.Timedelta(days=days)] if len(raw) else raw
 if len(df):
@@ -77,16 +78,21 @@ ranked = rank_news(df, now=now.to_pydatetime()) if len(df) else rank_news(pd.Dat
 if len(ranked):
     ranked = ranked[ranked["tier"].isin(tiers) & (ranked["n_sources"] >= min_src)]
 
-t_feed, t_threads, t_ent, t_src, t_ai = st.tabs(["Ranked feed", "Story threads", "Entities & trends", "Sources & dedupe",
-                                                 "AI synthesis"])
+t_feed, t_brief, t_threads, t_ent, t_src, t_ai = st.tabs(["Stories", "Past briefings", "Story threads", "Entities",
+                                                          "Sources", "AI synthesis"])
 
 with t_feed:
     st.caption(f"{len(df)} stored items in the filter → {len(ranked)} distinct stories after clustering near-duplicates.")
-    view = st.radio("View", ["Cards", "Table"], horizontal=True, label_visibility="collapsed")
+    view = st.segmented_control("View", ["Cards", "Table"], default="Cards", label_visibility="collapsed",
+                                key="arch_view") or "Cards"
     if ranked.empty:
-        ui.empty_state("No stories match. Broaden filters or refresh feeds.")
+        ui.empty_state("No stories match. Broaden the window or filters, or fetch feeds.")
     elif view == "Cards":
-        iu.story_list(ranked, n=60, tiers=tuple(tiers) or tuple(t for _, t in TIERS))
+        shown = st.session_state.get("arch_n", 30)
+        iu.story_list(ranked, n=shown, tiers=tuple(tiers) or tuple(t for _, t in TIERS))
+        if len(ranked) > shown and st.button(f"Show more ({len(ranked) - shown} remaining)", key="arch_more"):
+            st.session_state["arch_n"] = shown + 30
+            st.rerun()
     else:
         st.dataframe(ranked[["tier", "score", "published_utc", "headline", "source", "n_sources", "region", "category",
                              "info_type", "topics", "also_reported_by", "url"]], hide_index=True, width="stretch",
@@ -96,6 +102,23 @@ with t_feed:
     with st.expander("Ranking rules (deterministic)"):
         st.table(pd.DataFrame(SCORING_RULES, columns=["Rule", "Points"]))
         st.caption("Tiers: " + " · ".join(f"{label} ≥ {cut}" for cut, label in TIERS[:-1]) + " · else IGNORE FOR NOW.")
+
+with t_brief:
+    eds = {k: e.title for k, e in br.EDITIONS.items()}
+    pick_ed = st.selectbox("Edition", ["All", *eds], format_func=lambda k: "All editions" if k == "All" else eds[k],
+                           key="arch_ed")
+    past = br.archive(limit=120, edition=None if pick_ed == "All" else pick_ed)
+    if not past:
+        ui.empty_state("No briefings archived yet. Generate one from the Daily Briefing page.")
+    for b in past:
+        with st.expander(f"{eds.get(b.edition, b.edition)} · {b.edition_date:%a %d %b %Y} · "
+                         f"{b.created_at:%H:%M} UTC" + (" · AI edition" if b.ai_md else " · facts only")):
+            md = b.ai_md or b.deterministic_md
+            if b.ai_md:
+                ui.render_ai_markdown(md, allowed_urls=ui._payload_urls(json.loads(b.payload_json or "{}")))
+            else:
+                st.markdown(md)
+            st.download_button("Download (.md)", md, file_name=f"{b.edition}-{b.edition_date}.md", key=f"dl_{b.id}")
 
 with t_threads:
     st.caption("Developing stories: clusters with at least two stored reports, ordered by number of independent "
@@ -111,7 +134,8 @@ with t_threads:
             for x in r["timeline"]:
                 st.markdown(f"- `{x['published_utc']}` **{x['source']}** — [{x['headline']}]({x['url']})")
             ui.gemini_panel(f"thread_{i}", "Summarise this thread",
-                            lambda r=r: gemini.intel_analysis("news_summary", {"thread": r.to_dict()}, "thread"))
+                            lambda r=r: gemini.intel_analysis("news_summary", {"thread": r.to_dict()}, "thread"),
+                            payload_for_links={"thread": r.to_dict()})
 
 with t_ent:
     if df.empty:
@@ -131,7 +155,7 @@ with t_ent:
 
         cur, prv = count(df), count(prev_raw) if len(prev_raw) else (Counter(), Counter(), Counter())
         cols = st.columns(3)
-        for col, title, a, b in zip(cols, ["Countries & regions", "Institutions", "Tickers"], cur, prv):
+        for col, title, a, b in zip(cols, ["Countries & regions", "Institutions", "Tickers"], cur, prv):  # noqa: B007
             rows = [{"Entity": k, "Mentions": v, "Previous window": b.get(k, 0), "Change": v - b.get(k, 0)}
                     for k, v in a.most_common(15)]
             col.markdown(f"**{title}**")
@@ -156,9 +180,10 @@ with t_src:
 with t_ai:
     top = ranked.head(25)[["tier", "published_utc", "headline", "source", "url", "tickers", "category", "region",
                            "info_type", "n_sources"]] if len(ranked) else []
-    ui.gemini_panel("news_impact", "Generate AI market-impact synthesis",
+    ui.gemini_panel("news_impact", "AI market-impact synthesis",
                     lambda: gemini.news_impact({"headlines": top, "note": "Classify confirmed facts vs speculation; "
                                                                           "cite source and time for each item."}),
-                    help_text="Probable sector effects and what is confirmed vs speculative, for the filtered stories.")
+                    help_text="Probable sector effects and what is confirmed vs speculative, for the filtered stories.",
+                    payload_for_links={"headlines": top.to_dict("records") if len(ranked) else []})
 
 ui.disclaimer()

@@ -30,7 +30,7 @@ with tab_over:
     a, b = st.columns([1.15, 1])
     with a:
         st.plotly_chart(iu.heatmap(core, title="Core markets — % change (yields: % change of the yield level)"),
-                        width="stretch")
+                        width="stretch", config=iu.STATIC_CHART)
     with b:
         st.markdown("**Regional scoreboard (1W %)**")
         reg = {"US": ["^GSPC", "^NDX", "^RUT"], "Europe": ["^FTSE", "^GDAXI", "^STOXX50E"],
@@ -55,7 +55,7 @@ with tab_risk:
                 f"{len(risk['signals']) - risk['risk_on'] - risk['risk_off']} neutral", unsafe_allow_html=True)
     sig = pd.DataFrame(risk["signals"])
     if len(sig):
-        st.dataframe(sig.style.map(lambda v: "color:#10B981" if v == "Risk-on" else "color:#F43F5E" if v == "Risk-off"
+        st.dataframe(sig.style.map(lambda v: "color:#2FBF71" if v == "Risk-on" else "color:#EF5B67" if v == "Risk-off"
                                    else "", subset=["Reading"]), hide_index=True, width="stretch")
     st.caption(risk["methodology"])
     st.markdown("**Volatility & credit**")
@@ -91,6 +91,7 @@ with tab_ai:
                "news": iu.ranked_news(2).head(30)[["tier", "headline", "source", "published_utc", "url", "region",
                                                    "info_type", "topics"]]}
     ui.gemini_panel("global_macro", "Explain the global macro picture",
-                    lambda: gemini.intel_analysis("global_macro_analyst", payload, "global"))
+                    lambda: gemini.intel_analysis("global_macro_analyst", payload, "global"),
+                    payload_for_links=payload)
 
 ui.disclaimer()

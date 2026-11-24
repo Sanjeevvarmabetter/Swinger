@@ -1,6 +1,6 @@
 # Production Deployment Guide — AI Trading OS
 
-This guide explains how to deploy **AI Trading OS** to **Render** or **Railway** with persistent storage for your SQLite databases (`trading.db`, `longterm.db`), chart screenshots, and backups.
+This guide explains how to deploy **Global Market Intelligence** to **Render** or **Railway** with persistent storage for the SQLite database (`trading.db`), caches and backups.
 
 ---
 
@@ -8,7 +8,7 @@ This guide explains how to deploy **AI Trading OS** to **Render** or **Railway**
 
 - **Runtime:** Python 3.12 (via Docker)
 - **Port:** Dynamically binds to `$PORT` (assigned by Render/Railway) or default `8501`.
-- **Persistent Volume:** Mounted at `/app/data` to ensure your journal, trade plans, and settings survive application restarts and re-deployments.
+- **Persistent Volume:** Mounted at `/app/data` to ensure stored news, archived briefings, chat history and settings survive restarts and re-deployments.
 - **Healthcheck:** Evaluated at `/_stcore/health`.
 
 ---

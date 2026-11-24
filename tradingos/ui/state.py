@@ -7,11 +7,11 @@ from dataclasses import asdict
 import streamlit as st
 
 from tradingos import services
-from tradingos.settings import TradingSettings, load_settings
+from tradingos.settings import AppSettings, load_settings
 
 
-def _cfg_from(cfg_json: str) -> TradingSettings:
-    return TradingSettings.from_dict(json.loads(cfg_json))
+def _cfg_from(cfg_json: str) -> AppSettings:
+    return AppSettings.from_dict(json.loads(cfg_json))
 
 
 @st.cache_data(ttl=900, show_spinner=False)

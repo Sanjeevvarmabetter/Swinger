@@ -1,7 +1,7 @@
 """Economic Calendar & Central Bank Tracker — official schedules, IST times, sourced readings only."""
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 import pandas as pd
 import streamlit as st
@@ -17,11 +17,12 @@ ui.render_top_bar(show_refresh=False)
 iu.page_header("Economic Calendar & Central Banks", "US releases (FRED official schedule) · FOMC (federalreserve.gov) · "
                "your sourced entries for RBI/ECB/BoJ/BoE/China · times in IST · actuals only when officially released")
 
-st.info("**No forecasts or consensus numbers are shown.** Your Finnhub and FMP plans do not include an economic "
-        "calendar (verified on System Health), and the app never estimates them. 'Previous' and 'Actual' come from "
-        "FRED series data with their reference periods.", icon="ℹ️")
+st.caption("No forecasts or consensus numbers are shown: the current Finnhub/FMP plans do not include an economic "
+           "calendar (verified on System Health) and the app never estimates them. 'Previous' and 'Actual' come from "
+           "FRED series data with their reference periods.")
 
-c1, c2, c3, c4 = st.columns([1, 1, 1.4, 1])
+with st.expander("Filters", icon=":material/filter_list:"):
+    c1, c2, c3, c4 = st.columns([1, 1, 1.4, 1])
 past = c1.selectbox("Look back", [3, 7, 14, 30], index=2, format_func=lambda d: f"{d} days")
 ahead = c2.selectbox("Look ahead", [7, 14, 30, 60], index=2, format_func=lambda d: f"{d} days")
 imp = c3.multiselect("Importance", ["high", "medium", "low"], default=["high", "medium"])
@@ -53,7 +54,7 @@ with tab_cal:
                 head = (f"{r['date']:%a %d %b} ({when}) · {r['time_ist']} · {r['country']} · {r['event']}")
                 with st.expander(head, expanded=r["importance"] == "high" and 0 <= (r["date"] - today).days <= 3):
                     st.markdown(f"{ui.chip(r['importance'].upper(), imp_cls)} {ui.chip(r['origin'])} "
-                                f"<a href='{r['source']}' target='_blank' style='color:#38BDF8;font-size:0.8rem;'>source ↗</a>",
+                                f"<a href='{r['source']}' target='_blank' style='color:#4EA8F2;font-size:0.8rem;'>source ↗</a>",
                                 unsafe_allow_html=True)
                     if r.get("market_relevance"):
                         st.caption(f"Why it matters (framework): {r['market_relevance']}")
@@ -148,6 +149,7 @@ with tab_ai:
             "central_banks": [{k: v for k, v in cb.items() if k != "latest_communications"} for cb in calendars.central_bank_tracker()],
             "risk_appetite": iu.risk(), "note": "No consensus forecasts are available; do not invent them."}
         ui.gemini_panel("cal_ai", "Preview the week's macro risks",
-                        lambda: gemini.intel_analysis("global_macro_analyst", payload, "calendar"))
+                        lambda: gemini.intel_analysis("global_macro_analyst", payload, "calendar"),
+                        payload_for_links=payload)
 
 ui.disclaimer()
